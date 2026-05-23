@@ -24,15 +24,17 @@
 | 09 | [Neon PostgreSQL dan Instalasi Awal](santap-api/09-neon-and-installation.md) | Environment Neon, direct/pooled connection, package, dan command instalasi. |
 | 10 | [Rencana Implementasi dan Batas MVP](santap-api/10-roadmap-and-mvp.md) | Phase implementasi, fitur yang ditunda, dan fokus MVP. |
 | 11 | [Keputusan Final dan Catatan Implementasi](santap-api/11-decisions-and-notes.md) | Keputusan teknis final dan urutan aman implementasi. |
+| 12 | [Dokumentasi Alur API (Flutter & Web)](santap-api/12-client-api-flows.md) | Panduan langkah demi langkah integrasi API untuk Flutter dan Web Customer. |
 
 ## Alur Baca yang Disarankan
 
 1. Baca [Overview Produk dan Konteks](santap-api/00-overview.md).
 2. Lanjut ke [Multi-Organisasi, Role, dan Permission](santap-api/01-multi-organization-and-permissions.md).
 3. Pahami [Autentikasi dan Session](santap-api/02-authentication-and-sessions.md).
-4. Gunakan [API Design](santap-api/05-api-design.md) dan [Skema Database Awal](santap-api/04-database-schema.md) saat mulai implementasi endpoint/migration.
-5. Jadikan [Rencana Implementasi dan Batas MVP](santap-api/10-roadmap-and-mvp.md) sebagai urutan kerja.
-6. Gunakan [Roadmap Eksekusi Santap API](roadmap.md) untuk checklist phase-by-phase yang lebih detail.
+4. Gunakan [Dokumentasi Alur API (Flutter & Web)](santap-api/12-client-api-flows.md) untuk memahami siklus hidup request client.
+5. Gunakan [API Design](santap-api/05-api-design.md) dan [Skema Database Awal](santap-api/04-database-schema.md) saat mulai implementasi endpoint/migration.
+6. Jadikan [Rencana Implementasi dan Batas MVP](santap-api/10-roadmap-and-mvp.md) sebagai urutan kerja.
+7. Gunakan [Roadmap Eksekusi Santap API](roadmap.md) untuk checklist phase-by-phase yang lebih detail.
 
 ## Catatan
 

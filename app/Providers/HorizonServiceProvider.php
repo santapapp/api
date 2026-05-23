@@ -28,9 +28,14 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewHorizon', function ($user = null) {
-            return in_array(optional($user)->email, [
-                //
-            ]);
+            if (!$user) {
+                return false;
+            }
+            $originalTeamId = app(\Spatie\Permission\PermissionRegistrar::class)->getPermissionsTeamId();
+            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId(null);
+            $hasRole = $user->hasRole('administrator');
+            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($originalTeamId);
+            return $hasRole || $user->email === 'test@example.com';
         });
     }
 }
