@@ -194,7 +194,7 @@ class KobesahGodeanSeeder extends Seeder
                     'organization_id' => $org->id,
                     'dining_table_id' => $table->id,
                     'qr_token'        => $token,
-                    'qr_url'          => "https://santap.id/o/{$org->slug}/t/{$tData['code']}?qr={$token}",
+                    'qr_url'          => "https://santap.app/o/{$org->slug}/t/{$tData['code']}?qr={$token}",
                     'status'          => QrCodeStatus::Active,
                 ]);
             }

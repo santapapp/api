@@ -1,61 +1,68 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
+use Dedoc\Scramble\Scramble;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Str;
+
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->singleton(\App\Services\OrganizationContext::class);
+        Scramble::ignoreDefaultRoutes();
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // 1. Authorize Laravel Pulse access
-        Gate::define('viewPulse', function ($user) {
-            if (!$user) {
-                return false;
-            }
-            $originalTeamId = app(\Spatie\Permission\PermissionRegistrar::class)->getPermissionsTeamId();
-            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId(null);
-            $hasRole = $user->hasRole('administrator');
-            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($originalTeamId);
-            return $hasRole || $user->email === 'test@example.com';
+        // Register custom API groups for Scramble
+        Scramble::registerApi('mobile', [
+            'info' => [
+                'title' => 'Santap Mobile POS & Staff API',
+                'description' => 'API untuk aplikasi staff kasir, dapur, dan owner.',
+                'version' => '1.0.0',
+            ]
+        ])->routes(function (Route $route) {
+            return Str::startsWith($route->uri(), 'api/v1') && !Str::startsWith($route->uri(), 'api/v1/customer');
         });
 
-        // 2. Define Rate Limiters
+        Scramble::registerApi('customer-web', [
+            'info' => [
+                'title' => 'Santap Customer Web API',
+                'description' => 'API publik tanpa login untuk pelanggan di meja.',
+                'version' => '1.0.0',
+            ]
+        ])->routes(function (Route $route) {
+            return Str::startsWith($route->uri(), 'api/v1/customer');
+        });
+
+        // Register UI & JSON routes
+        Scramble::registerUiRoute('docs/api/mobile', api: 'mobile');
+        Scramble::registerJsonSpecificationRoute('docs/api/mobile/api.json', api: 'mobile');
+
+        Scramble::registerUiRoute('docs/api/customer-web', api: 'customer-web');
+        Scramble::registerJsonSpecificationRoute('docs/api/customer-web/api.json', api: 'customer-web');
+
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());
         });
 
-        RateLimiter::for('invite', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
-        });
-
-        RateLimiter::for('customer-session-start', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
-        });
-
         RateLimiter::for('customer-order', function (Request $request) {
-            $sessionToken = $request->header('X-Customer-Session') ?: $request->ip();
-            return Limit::perMinute(15)->by($sessionToken);
+            $token = $request->header('X-Public-Token') ?: $request->ip();
+            return Limit::perMinute(10)->by($token);
         });
 
         RateLimiter::for('qris-check', function (Request $request) {
-            $sessionToken = $request->header('X-Customer-Session') ?: $request->ip();
-            return Limit::perMinute(30)->by($sessionToken);
+            $token = $request->header('X-Public-Token') ?: $request->ip();
+            return Limit::perMinute(20)->by($token);
         });
     }
 }

@@ -6,7 +6,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
-use Order;
+use App\Models\Order;
 
 class RecentOrders extends TableWidget
 {

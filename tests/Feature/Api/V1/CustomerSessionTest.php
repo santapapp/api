@@ -59,7 +59,7 @@ class CustomerSessionTest extends TestCase
             'organization_id' => $this->orgA->id,
             'dining_table_id' => $this->tableA->id,
             'qr_token' => 'token-a-1234',
-            'qr_url' => 'https://santap.id/o/resto-a/t/A1?qr=token-a-1234',
+            'qr_url' => 'https://santap.app/o/resto-a/t/A1?qr=token-a-1234',
             'status' => QrCodeStatus::Active,
         ]);
 
@@ -67,7 +67,7 @@ class CustomerSessionTest extends TestCase
             'organization_id' => $this->orgB->id,
             'dining_table_id' => $this->tableB->id,
             'qr_token' => 'token-b-5678',
-            'qr_url' => 'https://santap.id/o/resto-b/t/B1?qr=token-b-5678',
+            'qr_url' => 'https://santap.app/o/resto-b/t/B1?qr=token-b-5678',
             'status' => QrCodeStatus::Active,
         ]);
     }

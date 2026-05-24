@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Enums\MemberStatus;
 use App\Models\OrganizationMember;
 use App\Services\OrganizationContext;
 use Closure;
@@ -19,30 +18,25 @@ class EnsureOrganizationMember
         $context = app(OrganizationContext::class);
         $organization = $context->get();
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'Unauthenticated.',
-            ], 401);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        if (!$organization) {
-            return response()->json([
-                'message' => 'Konteks organisasi belum ditentukan.',
-            ], 500);
+        if (! $organization) {
+            return response()->json(['message' => 'Konteks organisasi belum ditentukan.'], 500);
         }
 
-        // Cari status keanggotaan user di organisasi ini
         $member = OrganizationMember::where('organization_id', $organization->id)
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$member || $member->status !== MemberStatus::Active) {
+        if (! $member) {
             return response()->json([
-                'message' => 'Anda bukan member aktif dari organisasi ini.',
+                'message' => 'Anda bukan member dari organisasi ini.',
             ], 403);
         }
 
-        // Update context dengan data member
+        // Simpan member ke context untuk dipakai controller
         $context->set($organization, $member);
 
         return $next($request);

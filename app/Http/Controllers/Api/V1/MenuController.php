@@ -4,219 +4,133 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\MenuType;
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
+use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /**
+     * List menu tree: products + children (eager loaded 2 levels deep).
+     */
+    public function index(): JsonResponse
     {
-        $query = Menu::with('category')->orderBy('sort_order')->orderBy('name');
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        if ($request->has('category_id')) {
-            $query->where('menu_category_id', $request->category_id);
-        }
+        $menus = Menu::where('organization_id', $orgId)
+            ->products()
+            ->with('children.children')
+            ->orderBy('sort_order')
+            ->get();
 
-        $menus = $query->get()->map(fn ($menu) => $this->transformMenu($menu));
-
-        return response()->json([
-            'data' => $menus,
-        ]);
+        return response()->json(['data' => $menus]);
     }
 
+    /**
+     * Buat menu item (product, variant_group, variant, addon_group, addon).
+     */
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'menu_category_id' => 'required|exists:menu_categories,id',
+        $request->validate([
+            'type' => 'required|string|in:product,variant_group,variant,addon_group,addon',
+            'parent_id' => 'nullable|integer|exists:menus,id',
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'sku' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:active,inactive,out_of_stock',
-            'sort_order' => 'nullable|integer',
-            'metadata' => 'nullable|array',
+            'price' => 'numeric|min:0',
+            'sort_order' => 'integer|min:0',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        $slug = Str::slug($request->name);
-        $exists = Menu::where('slug', $slug)->exists();
-        if ($exists) {
-            $slug = $slug . '-' . Str::lower(Str::random(4));
+        // Validasi parent_id harus milik org yang sama
+        if ($request->parent_id) {
+            $parent = Menu::where('organization_id', $orgId)->findOrFail($request->parent_id);
+
+            // Validasi hierarki
+            $this->validateHierarchy($request->type, $parent->type->value);
         }
 
         $menu = Menu::create([
-            'menu_category_id' => $request->menu_category_id,
+            'organization_id' => $orgId,
+            'parent_id' => $request->parent_id,
+            'type' => $request->type,
             'name' => $request->name,
-            'slug' => $slug,
-            'description' => $request->description,
-            'price' => $request->price,
-            'sku' => $request->sku,
-            'status' => $request->status ?? 'active',
-            'sort_order' => $request->sort_order ?? 0,
-            'metadata' => $request->metadata,
+            'price' => $request->input('price', 0),
+            'sort_order' => $request->input('sort_order', 0),
         ]);
 
         return response()->json([
+            'data' => $menu,
             'message' => 'Menu berhasil dibuat.',
-            'data' => $this->transformMenu($menu),
         ], 201);
     }
 
-    public function show(int $menu): JsonResponse
+    public function update(Request $request, int $id): JsonResponse
     {
-        $context = app(\App\Services\OrganizationContext::class);
-        $menuModel = Menu::where('id', $menu)
-            ->where('organization_id', $context->getOrganizationId())
-            ->first();
+        $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'price' => 'sometimes|numeric|min:0',
+            'sort_order' => 'sometimes|integer|min:0',
+            'is_available' => 'sometimes|boolean',
+        ]);
 
-        if (!$menuModel) {
-            return response()->json(['message' => 'Menu tidak ditemukan.'], 404);
-        }
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
+        $menu = Menu::where('organization_id', $orgId)->findOrFail($id);
+
+        $menu->update($request->only(['name', 'price', 'sort_order', 'is_available']));
 
         return response()->json([
-            'data' => $this->transformMenu($menuModel),
+            'data' => $menu->fresh(),
+            'message' => 'Menu berhasil diupdate.',
         ]);
     }
 
-    public function update(Request $request, int $menu): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $context = app(\App\Services\OrganizationContext::class);
-        $menu = Menu::where('id', $menu)
-            ->where('organization_id', $context->getOrganizationId())
-            ->first();
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
+        $menu = Menu::where('organization_id', $orgId)->findOrFail($id);
 
-        if (!$menu) {
-            return response()->json(['message' => 'Menu tidak ditemukan.'], 404);
-        }
+        $menu->delete(); // cascade ke children via FK
 
-        $validator = Validator::make($request->all(), [
-            'menu_category_id' => 'required|exists:menu_categories,id',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'sku' => 'nullable|string|max:255',
-            'status' => 'required|string|in:active,inactive,out_of_stock',
-            'sort_order' => 'nullable|integer',
-            'metadata' => 'nullable|array',
-        ]);
+        return response()->json(['message' => 'Menu berhasil dihapus.']);
+    }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+    /**
+     * Toggle is_available.
+     */
+    public function toggle(int $id): JsonResponse
+    {
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
+        $menu = Menu::where('organization_id', $orgId)->findOrFail($id);
 
-        $slug = $menu->slug;
-        if ($request->name !== $menu->name) {
-            $slug = Str::slug($request->name);
-            $exists = Menu::where('slug', $slug)
-                ->where('id', '!=', $menu->id)
-                ->exists();
-            if ($exists) {
-                $slug = $slug . '-' . Str::lower(Str::random(4));
-            }
-        }
-
-        $menu->update([
-            'menu_category_id' => $request->menu_category_id,
-            'name' => $request->name,
-            'slug' => $slug,
-            'description' => $request->description,
-            'price' => $request->price,
-            'sku' => $request->sku,
-            'status' => $request->status,
-            'sort_order' => $request->sort_order ?? 0,
-            'metadata' => $request->metadata,
-        ]);
+        $menu->update(['is_available' => ! $menu->is_available]);
 
         return response()->json([
-            'message' => 'Menu berhasil diperbarui.',
-            'data' => $this->transformMenu($menu),
+            'data' => $menu->fresh(),
+            'message' => $menu->is_available ? 'Menu diaktifkan.' : 'Menu dinonaktifkan.',
         ]);
     }
 
-    public function destroy(int $menu): JsonResponse
+    /**
+     * Validasi hierarki parent-child.
+     */
+    private function validateHierarchy(string $childType, string $parentType): void
     {
-        $context = app(\App\Services\OrganizationContext::class);
-        $menuModel = Menu::where('id', $menu)
-            ->where('organization_id', $context->getOrganizationId())
-            ->first();
-
-        if (!$menuModel) {
-            return response()->json(['message' => 'Menu tidak ditemukan.'], 404);
-        }
-
-        $menuModel->delete();
-
-        return response()->json([
-            'message' => 'Menu berhasil dihapus.',
-        ]);
-    }
-
-    public function uploadImage(Request $request, int $menu): JsonResponse
-    {
-        $context = app(\App\Services\OrganizationContext::class);
-        $menuModel = Menu::where('id', $menu)
-            ->where('organization_id', $context->getOrganizationId())
-            ->first();
-
-        if (!$menuModel) {
-            return response()->json(['message' => 'Menu tidak ditemukan.'], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        // Clear existing media in the collection
-        $menuModel->clearMediaCollection('menu-images');
-
-        // Add new media
-        $media = $menuModel->addMediaFromRequest('image')->toMediaCollection('menu-images');
-
-        return response()->json([
-            'message' => 'Gambar menu berhasil diunggah.',
-            'image_url' => $media->getUrl(),
-            'data' => $this->transformMenu($menuModel),
-        ]);
-    }
-
-    private function transformMenu(Menu $menu): array
-    {
-        return [
-            'id' => $menu->id,
-            'organization_id' => $menu->organization_id,
-            'menu_category_id' => $menu->menu_category_id,
-            'category_name' => $menu->category?->name,
-            'name' => $menu->name,
-            'slug' => $menu->slug,
-            'description' => $menu->description,
-            'price' => $menu->price,
-            'sku' => $menu->sku,
-            'status' => $menu->status,
-            'sort_order' => $menu->sort_order,
-            'metadata' => $menu->metadata,
-            'image_url' => $menu->getFirstMediaUrl('menu-images') ?: null,
-            'created_at' => $menu->created_at,
-            'updated_at' => $menu->updated_at,
+        $allowed = [
+            'variant_group' => 'product',
+            'addon_group' => 'product',
+            'variant' => 'variant_group',
+            'addon' => 'addon_group',
         ];
+
+        if (! isset($allowed[$childType])) {
+            abort(422, 'Product tidak boleh punya parent.');
+        }
+
+        if ($allowed[$childType] !== $parentType) {
+            abort(422, "Tipe {$childType} harus berada di dalam {$allowed[$childType]}, bukan {$parentType}.");
+        }
     }
 }

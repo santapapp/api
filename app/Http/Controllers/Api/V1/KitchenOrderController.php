@@ -1,90 +1,74 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Enums\OrderItemStatus;
+use App\Enums\ItemStatus;
 use App\Enums\OrderStatus;
+use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Events\OrderItemStatusUpdated;
+use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class KitchenOrderController extends Controller
 {
-    public function index(): JsonResponse
+    /**
+     * List order masuk untuk kitchen (polling).
+     */
+    public function index(Request $request): JsonResponse
     {
-        // Get active orders that need kitchen attention (pending, cooking)
-        $orders = Order::with(['items' => function ($query) {
-            $query->whereIn('status', [
-                OrderItemStatus::Pending->value,
-                OrderItemStatus::Cooking->value,
-                OrderItemStatus::Ready->value,
-            ]);
-        }, 'diningTable'])
-        ->whereIn('status', [
-            OrderStatus::Pending->value,
-            OrderStatus::Accepted->value,
-            OrderStatus::Cooking->value,
-            OrderStatus::Ready->value,
-        ])
-        ->orderBy('created_at', 'asc')
-        ->get();
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        return response()->json([
-            'data' => $orders,
-        ]);
+        $orders = Order::where('organization_id', $orgId)
+            ->whereIn('order_status', [
+                OrderStatus::Confirmed,
+                OrderStatus::Preparing,
+            ])
+            ->with(['items.children', 'diningTable'])
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json(['data' => $orders]);
     }
 
+    /**
+     * Update status item.
+     */
     public function updateItemStatus(Request $request, int $id): JsonResponse
     {
-        $context = app(\App\Services\OrganizationContext::class);
-        $orderItem = OrderItem::where('id', $id)
-            ->where('organization_id', $context->getOrganizationId())
-            ->first();
-
-        if (!$orderItem) {
-            return response()->json(['message' => 'Order item tidak ditemukan.'], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|string|in:pending,cooking,ready,served,cancelled',
+        $request->validate([
+            'item_status' => 'required|string|in:preparing,ready,served,cancelled',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal.',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        $orderItem->update([
-            'status' => $request->status,
-        ]);
+        $item = OrderItem::whereHas('order', function ($q) use ($orgId) {
+            $q->where('organization_id', $orgId);
+        })->findOrFail($id);
 
-        // Broadcast event
-        broadcast(new OrderItemStatusUpdated($orderItem));
+        $item->update(['item_status' => $request->item_status]);
 
-        // Auto-update parent order status if all items are ready/served
-        $order = $orderItem->order;
-        $allItems = $order->items;
-        
-        $allServedOrCancelled = $allItems->every(fn($item) => in_array($item->status->value, ['served', 'cancelled']));
-        $allReadyServedOrCancelled = $allItems->every(fn($item) => in_array($item->status->value, ['ready', 'served', 'cancelled']));
-        
-        if ($allServedOrCancelled) {
-            $order->update(['status' => OrderStatus::Served]);
-        } elseif ($allReadyServedOrCancelled) {
-            $order->update(['status' => OrderStatus::Ready]);
-        } elseif ($request->status === 'cooking' && $order->status === OrderStatus::Pending) {
-            $order->update(['status' => OrderStatus::Cooking]);
+        // Cek apakah semua items sudah served → update order_status
+        $order = $item->order;
+        $allServed = $order->allItems()
+            ->whereNull('parent_item_id')
+            ->where('item_status', '!=', ItemStatus::Served)
+            ->where('item_status', '!=', ItemStatus::Cancelled)
+            ->doesntExist();
+
+        if ($allServed) {
+            $order->update(['order_status' => OrderStatus::Ready]);
+        } elseif ($order->order_status === OrderStatus::Confirmed) {
+            // Jika ada item mulai preparing, ubah order ke preparing
+            $order->update(['order_status' => OrderStatus::Preparing]);
         }
 
         return response()->json([
-            'message' => 'Status order item berhasil diperbarui.',
-            'data' => $orderItem,
+            'data' => $item->fresh(),
+            'message' => 'Status item diupdate.',
         ]);
     }
 }

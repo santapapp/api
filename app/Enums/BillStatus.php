@@ -6,7 +6,7 @@ namespace App\Enums;
 
 enum BillStatus: string
 {
+    case None = 'none';
     case Open = 'open';
     case Closed = 'closed';
-    case Cancelled = 'cancelled';
 }

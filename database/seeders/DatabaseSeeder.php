@@ -4,188 +4,153 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\DiningTable;
+use App\Models\Menu;
+use App\Models\Organization;
+use App\Models\OrganizationMember;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // 1. Run Roles and Permissions Seeder
-        $this->call(RolesAndPermissionsSeeder::class);
-
-        // 2. Create Global Administrator
-        $admin = User::firstOrCreate([
-            'email' => 'test@example.com',
-        ], [
-            'name' => 'Santap Super Admin',
+        // ============================================================
+        // 1. Admin user
+        // ============================================================
+        $admin = User::create([
+            'name' => 'Admin Santap',
+            'email' => 'admin@santap.app',
             'password' => bcrypt('password'),
-            'phone' => '081234567890',
-            'status' => 'active',
         ]);
 
-        // Assign global administrator role (team ID is null for global)
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
-        $admin->syncRoles(['administrator']);
-
-        // 3. Create Resto Owner, Cashier, and Kitchen for testing
-        $owner = User::firstOrCreate([
-            'email' => 'owner@santap.com',
-        ], [
-            'name' => 'Resto Owner',
+        // ============================================================
+        // 2. Owner user
+        // ============================================================
+        $owner = User::create([
+            'name' => 'Budi Owner',
+            'email' => 'owner@santap.app',
             'password' => bcrypt('password'),
-            'phone' => '081234567891',
-            'status' => 'active',
         ]);
 
-        $cashier = User::firstOrCreate([
-            'email' => 'cashier@santap.com',
-        ], [
-            'name' => 'Resto Cashier',
+        // ============================================================
+        // 3. Cashier user
+        // ============================================================
+        $cashier = User::create([
+            'name' => 'Sari Kasir',
+            'email' => 'cashier@santap.app',
             'password' => bcrypt('password'),
-            'phone' => '081234567892',
-            'status' => 'active',
         ]);
 
-        $kitchen = User::firstOrCreate([
-            'email' => 'kitchen@santap.com',
-        ], [
-            'name' => 'Resto Kitchen',
+        // ============================================================
+        // 4. Kitchen user
+        // ============================================================
+        $kitchen = User::create([
+            'name' => 'Andi Kitchen',
+            'email' => 'kitchen@santap.app',
             'password' => bcrypt('password'),
-            'phone' => '081234567893',
-            'status' => 'active',
         ]);
 
-        // 4. Create Demo Organization: Warung Padang Sekeco
-        $organization = \App\Models\Organization::firstOrCreate([
-            'slug' => 'warung-padang-sekeco',
-        ], [
-            'name' => 'Warung Padang Sekeco',
-            'code' => 'WPS',
-            'email' => 'padang@sekeco.id',
-            'phone' => '081234567890',
-            'address' => 'Jl. Jenderal Sudirman No. 123',
-            'city' => 'Jakarta',
-            'province' => 'DKI Jakarta',
-            'country' => 'Indonesia',
-            'timezone' => 'Asia/Jakarta',
-            'currency' => 'IDR',
-            'status' => \App\Enums\OrganizationStatus::Active,
-            'created_by' => $admin->id,
+        // ============================================================
+        // 5. Organization
+        // ============================================================
+        $org = Organization::create([
+            'name' => 'Warung Santap Demo',
+            'slug' => 'warung-santap-demo',
         ]);
 
-        // Attach users to organization
-        if (!$organization->users()->where('user_id', $owner->id)->exists()) {
-            $organization->users()->attach($owner->id, [
-                'role_name' => 'owner',
-                'status' => 'active',
-                'joined_at' => now(),
-            ]);
-        }
-        if (!$organization->users()->where('user_id', $cashier->id)->exists()) {
-            $organization->users()->attach($cashier->id, [
-                'role_name' => 'cashier',
-                'status' => 'active',
-                'joined_at' => now(),
-            ]);
-        }
-        if (!$organization->users()->where('user_id', $kitchen->id)->exists()) {
-            $organization->users()->attach($kitchen->id, [
-                'role_name' => 'kitchen',
-                'status' => 'active',
-                'joined_at' => now(),
+        // ============================================================
+        // 6. Members
+        // ============================================================
+        OrganizationMember::create(['organization_id' => $org->id, 'user_id' => $owner->id, 'role' => 'owner']);
+        OrganizationMember::create(['organization_id' => $org->id, 'user_id' => $cashier->id, 'role' => 'cashier']);
+        OrganizationMember::create(['organization_id' => $org->id, 'user_id' => $kitchen->id, 'role' => 'kitchen']);
+
+        // ============================================================
+        // 7. Dining Tables
+        // ============================================================
+        foreach (['Meja 1', 'Meja 2', 'Meja 3', 'VIP 1'] as $name) {
+            DiningTable::create([
+                'organization_id' => $org->id,
+                'name' => $name,
+                'qr_token' => Str::random(32),
             ]);
         }
 
-        // Assign Spatie roles inside organization
-        app(PermissionRegistrar::class)->setPermissionsTeamId($organization->id);
-        $owner->assignRole('owner');
-        $cashier->assignRole('cashier');
-        $kitchen->assignRole('kitchen');
+        // ============================================================
+        // 8. Menu Tree
+        // ============================================================
 
-        // 5. Seed Menu Categories
-        $makanan = \App\Models\MenuCategory::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'makanan',
-        ], [
-            'name' => 'Makanan',
-        ]);
-
-        $minuman = \App\Models\MenuCategory::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'minuman',
-        ], [
-            'name' => 'Minuman',
-        ]);
-
-        $cemilan = \App\Models\MenuCategory::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'cemilan',
-        ], [
-            'name' => 'Cemilan',
-        ]);
-
-        // 6. Seed Menus
-        \App\Models\Menu::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'rendang-daging',
-        ], [
-            'menu_category_id' => $makanan->id,
-            'name' => 'Rendang Daging',
+        // --- Nasi Goreng ---
+        $nasiGoreng = Menu::create([
+            'organization_id' => $org->id,
+            'type' => 'product',
+            'name' => 'Nasi Goreng',
             'price' => 25000,
-            'status' => \App\Enums\MenuStatus::Active,
-            'sku' => 'M001',
+            'sort_order' => 1,
         ]);
 
-        \App\Models\Menu::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'ayam-pop',
-        ], [
-            'menu_category_id' => $makanan->id,
-            'name' => 'Ayam Pop',
+        $levelPedas = Menu::create([
+            'organization_id' => $org->id,
+            'parent_id' => $nasiGoreng->id,
+            'type' => 'variant_group',
+            'name' => 'Level Pedas',
+            'sort_order' => 1,
+        ]);
+
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $levelPedas->id, 'type' => 'variant', 'name' => 'Tidak Pedas', 'sort_order' => 1]);
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $levelPedas->id, 'type' => 'variant', 'name' => 'Sedang', 'sort_order' => 2]);
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $levelPedas->id, 'type' => 'variant', 'name' => 'Pedas', 'sort_order' => 3]);
+
+        $addon1 = Menu::create([
+            'organization_id' => $org->id,
+            'parent_id' => $nasiGoreng->id,
+            'type' => 'addon_group',
+            'name' => 'Tambahan',
+            'sort_order' => 2,
+        ]);
+
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $addon1->id, 'type' => 'addon', 'name' => 'Telur Ceplok', 'price' => 3000, 'sort_order' => 1]);
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $addon1->id, 'type' => 'addon', 'name' => 'Sosis', 'price' => 5000, 'sort_order' => 2]);
+        Menu::create(['organization_id' => $org->id, 'parent_id' => $addon1->id, 'type' => 'addon', 'name' => 'Kerupuk', 'price' => 2000, 'sort_order' => 3]);
+
+        // --- Mie Goreng ---
+        $mieGoreng = Menu::create([
+            'organization_id' => $org->id,
+            'type' => 'product',
+            'name' => 'Mie Goreng',
             'price' => 22000,
-            'status' => \App\Enums\MenuStatus::Active,
-            'sku' => 'M002',
+            'sort_order' => 2,
         ]);
 
-        \App\Models\Menu::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'es-teh-manis',
-        ], [
-            'menu_category_id' => $minuman->id,
+        // --- Es Teh Manis ---
+        Menu::create([
+            'organization_id' => $org->id,
+            'type' => 'product',
             'name' => 'Es Teh Manis',
             'price' => 5000,
-            'status' => \App\Enums\MenuStatus::Active,
-            'sku' => 'M003',
+            'sort_order' => 3,
         ]);
 
-        \App\Models\Menu::firstOrCreate([
-            'organization_id' => $organization->id,
-            'slug' => 'keripik-singkong',
-        ], [
-            'menu_category_id' => $cemilan->id,
-            'name' => 'Keripik Singkong',
+        // --- Es Jeruk ---
+        Menu::create([
+            'organization_id' => $org->id,
+            'type' => 'product',
+            'name' => 'Es Jeruk',
             'price' => 8000,
-            'status' => \App\Enums\MenuStatus::Active,
-            'sku' => 'M004',
+            'sort_order' => 4,
         ]);
 
-        // 7. Seed Dining Tables
-        foreach (range(1, 4) as $num) {
-            \App\Models\DiningTable::firstOrCreate([
-                'organization_id' => $organization->id,
-                'code' => 'T' . $num,
-            ], [
-                'name' => 'Meja ' . $num,
-                'status' => \App\Enums\TableStatus::Available,
-            ]);
-        }
+        // --- Kopi ---
+        Menu::create([
+            'organization_id' => $org->id,
+            'type' => 'product',
+            'name' => 'Kopi Hitam',
+            'price' => 7000,
+            'sort_order' => 5,
+        ]);
 
-        // 8. Seed Demo Org: Kobesah Godean
-        $this->call(KobesahGodeanSeeder::class);
+        $this->command->info('✅ Seeder selesai: 4 users, 1 org, 4 meja, 5 products (1 dengan variant+addon)');
     }
 }

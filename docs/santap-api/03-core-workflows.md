@@ -87,7 +87,7 @@ Owner membuat data meja
 Format QR URL contoh:
 
 ```txt
-https://santap.id/o/{organization_slug}/t/{table_code}?qr={qr_token}
+https://santap.app/o/{organization_slug}/t/{table_code}?qr={qr_token}
 ```
 
 Ketentuan:

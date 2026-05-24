@@ -189,7 +189,7 @@ class RestaurantMasterDataTest extends TestCase
 
         $response->assertStatus(201);
         $response->assertJsonPath('data.code', 'T01');
-        $response->assertJsonPath('data.qr_url', "https://santap.id/o/org-a/t/T01?qr=" . $response->json('data.qr_token'));
+        $response->assertJsonPath('data.qr_url', "https://santap.app/o/org-a/t/T01?qr=" . $response->json('data.qr_token'));
 
         $tableId = $response->json('data.id');
         $oldQrToken = $response->json('data.qr_token');

@@ -4,41 +4,44 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\TableStatus;
-use App\Traits\BelongsToOrganization;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable([
-    'organization_id',
-    'name',
-    'code',
-    'capacity',
-    'status',
-    'location_label',
-])]
 class DiningTable extends Model
 {
-    use HasFactory, BelongsToOrganization;
+    use HasFactory;
+
+    protected $fillable = [
+        'organization_id',
+        'name',
+        'qr_token',
+        'is_active',
+    ];
 
     protected function casts(): array
     {
         return [
-            'status' => TableStatus::class,
-            'capacity' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
-    public function qrCode(): HasOne
+    public function organization(): BelongsTo
     {
-        return $this->hasOne(TableQrCode::class);
+        return $this->belongsTo(Organization::class);
     }
 
-    public function qrCodes(): HasMany
+    public function orders(): HasMany
     {
-        return $this->hasMany(TableQrCode::class);
+        return $this->hasMany(Order::class);
+    }
+
+    public function activeOrder(): HasOne
+    {
+        return $this->hasOne(Order::class)
+            ->where('bill_status', 'open')
+            ->latest();
     }
 }

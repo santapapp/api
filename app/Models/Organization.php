@@ -4,85 +4,57 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\OrganizationStatus;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 
-#[Fillable([
-    'name',
-    'slug',
-    'code',
-    'logo',
-    'phone',
-    'email',
-    'address',
-    'city',
-    'province',
-    'country',
-    'timezone',
-    'currency',
-    'status',
-    'settings',
-    'created_by',
-])]
-class Organization extends Model implements \Spatie\MediaLibrary\HasMedia
+class Organization extends Model
 {
-    use HasFactory, LogsActivity, \Spatie\MediaLibrary\InteractsWithMedia;
+    use HasFactory;
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logFillable()
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
+    protected $fillable = [
+        'name',
+        'slug',
+        'is_active',
+    ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (Organization $organization) {
-            $organization->uuid = (string) Str::uuid();
-        });
-    }
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
-            'status' => OrganizationStatus::class,
-            'settings' => 'array',
+            'is_active' => 'boolean',
         ];
     }
 
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function users(): BelongsToMany
+    public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'organization_members')
-            ->withPivot(['role_name', 'status', 'joined_at'])
+            ->withPivot('role')
             ->withTimestamps();
     }
 
-    public function members(): HasMany
+    public function memberRecords(): HasMany
     {
         return $this->hasMany(OrganizationMember::class);
     }
 
-    public function invitations(): HasMany
+    public function diningTables(): HasMany
     {
-        return $this->hasMany(OrganizationInvitation::class);
+        return $this->hasMany(DiningTable::class);
+    }
+
+    public function menus(): HasMany
+    {
+        return $this->hasMany(Menu::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Menu::class)->where('type', 'product')->whereNull('parent_id');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 }

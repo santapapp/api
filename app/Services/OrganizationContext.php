@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Organization;
 use App\Models\OrganizationMember;
-use Spatie\Permission\PermissionRegistrar;
 
 class OrganizationContext
 {
@@ -17,9 +16,6 @@ class OrganizationContext
     {
         $this->organization = $organization;
         $this->member = $member;
-
-        // Scopes Spatie roles/permissions to this organization (team)
-        app(PermissionRegistrar::class)->setPermissionsTeamId($organization->id);
     }
 
     public function get(): ?Organization
@@ -37,12 +33,14 @@ class OrganizationContext
         return $this->member;
     }
 
+    public function getRole(): ?string
+    {
+        return $this->member?->role;
+    }
+
     public function clear(): void
     {
         $this->organization = null;
         $this->member = null;
-
-        // Reset Spatie team ID
-        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
     }
 }

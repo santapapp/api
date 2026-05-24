@@ -4,45 +4,19 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\MemberStatus;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 
-#[Fillable([
-    'organization_id',
-    'user_id',
-    'role_name',
-    'status',
-    'joined_at',
-])]
 class OrganizationMember extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory;
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logFillable()
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'status' => MemberStatus::class,
-            'joined_at' => 'datetime',
-        ];
-    }
+    protected $fillable = [
+        'organization_id',
+        'user_id',
+        'role',
+    ];
 
     public function organization(): BelongsTo
     {

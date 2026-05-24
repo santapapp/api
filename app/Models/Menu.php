@@ -4,52 +4,65 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\MenuStatus;
-use App\Traits\BelongsToOrganization;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
+use App\Enums\MenuType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable([
-    'organization_id',
-    'menu_category_id',
-    'name',
-    'slug',
-    'description',
-    'price',
-    'sku',
-    'status',
-    'sort_order',
-    'metadata',
-])]
-class Menu extends Model implements HasMedia
+class Menu extends Model
 {
-    use HasFactory, BelongsToOrganization, InteractsWithMedia, LogsActivity;
+    use HasFactory;
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logFillable()
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
+    protected $fillable = [
+        'organization_id',
+        'parent_id',
+        'type',
+        'name',
+        'price',
+        'is_available',
+        'sort_order',
+    ];
 
     protected function casts(): array
     {
         return [
-            'status' => MenuStatus::class,
+            'type' => MenuType::class,
             'price' => 'decimal:2',
-            'metadata' => 'array',
+            'is_available' => 'boolean',
+            'sort_order' => 'integer',
         ];
     }
 
-    public function category(): BelongsTo
+    public function organization(): BelongsTo
     {
-        return $this->belongsTo(MenuCategory::class, 'menu_category_id');
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Menu::class, 'parent_id')->orderBy('sort_order');
+    }
+
+    /**
+     * Scope: hanya produk root (tanpa parent).
+     */
+    public function scopeProducts(Builder $query): Builder
+    {
+        return $query->whereNull('parent_id')->where('type', MenuType::Product);
+    }
+
+    /**
+     * Scope: hanya yang tersedia.
+     */
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->where('is_available', true);
     }
 }

@@ -7,9 +7,9 @@ namespace App\Enums;
 enum OrderStatus: string
 {
     case Pending = 'pending';
-    case Accepted = 'accepted';
-    case Cooking = 'cooking';
+    case Confirmed = 'confirmed';
+    case Preparing = 'preparing';
     case Ready = 'ready';
-    case Served = 'served';
+    case Completed = 'completed';
     case Cancelled = 'cancelled';
 }
