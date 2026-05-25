@@ -38,12 +38,12 @@ class RestaurantMasterDataTest extends TestCase
         $this->owner = User::factory()->create();
         $this->otherOwner = User::factory()->create();
 
-        $this->orgA = Organization::factory()->create(['name' => 'Org A', 'slug' => 'org-a', 'created_by' => $this->owner->id]);
-        $this->orgB = Organization::factory()->create(['name' => 'Org B', 'slug' => 'org-b', 'created_by' => $this->otherOwner->id]);
+        $this->orgA = Organization::factory()->create(['name' => 'Org A', 'slug' => 'org-a']);
+        $this->orgB = Organization::factory()->create(['name' => 'Org B', 'slug' => 'org-b']);
 
         // Gabungkan member & role di Spatie
-        $this->orgA->users()->attach($this->owner->id, ['role_name' => 'owner', 'status' => 'active', 'joined_at' => now()]);
-        $this->orgB->users()->attach($this->otherOwner->id, ['role_name' => 'owner', 'status' => 'active', 'joined_at' => now()]);
+        $this->orgA->owners()->attach($this->owner->id, ['role' => 'owner']);
+        $this->orgB->owners()->attach($this->otherOwner->id, ['role' => 'owner']);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($this->orgA->id);
         $this->owner->assignRole('owner');

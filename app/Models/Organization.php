@@ -33,6 +33,14 @@ class Organization extends Model
             ->withTimestamps();
     }
 
+    public function owners(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'organization_members')
+            ->wherePivot('role', 'owner')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
     public function memberRecords(): HasMany
     {
         return $this->hasMany(OrganizationMember::class);

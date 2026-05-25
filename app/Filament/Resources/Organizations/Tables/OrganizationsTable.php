@@ -21,20 +21,26 @@ class OrganizationsTable
                     ->searchable(),
                 TextColumn::make('slug')
                     ->searchable(),
-                ToggleColumn::make('is_active'),
+                TextColumn::make('owners.name')
+                    ->label('Owner')
+                    ->badge(),
                 TextColumn::make('members_count')
                     ->counts('members')
-                    ->label('Users'),
+                    ->label('Total Users'),
                 TextColumn::make('dining_tables_count')
                     ->counts('diningTables')
-                    ->label('Tables'),
+                    ->label('Total Dining Tables'),
+                TextColumn::make('menus_count')
+                    ->counts('menus')
+                    ->label('Total Menus'),
                 TextColumn::make('orders_count')
                     ->counts('orders')
-                    ->label('Orders'),
+                    ->label('Total Orders'),
+                ToggleColumn::make('is_active')
+                    ->label('Status'),
                 TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()

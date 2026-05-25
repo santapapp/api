@@ -2,20 +2,20 @@
 
 namespace App\Filament\Resources\QrisPayments\Tables;
 
+use App\Enums\BillStatus;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Services\QrisService;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Notifications\Notification;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Actions\Action;
 use Filament\Tables\Table;
-use App\Services\QrisService;
-use Filament\Notifications\Notification;
-use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
-use App\Enums\PaymentStatus;
-
 
 class QrisPaymentsTable
 {
@@ -23,9 +23,19 @@ class QrisPaymentsTable
     {
         return $table
             ->columns([
-                TextColumn::make('order_number')->searchable(),
-                TextColumn::make('organization.name')->searchable(),
-                TextColumn::make('payment_reference')->searchable(),
+                TextColumn::make('organization.name')
+                    ->label('Organization')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('order_number')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('payment_reference')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('payment_amount')
+                    ->money('IDR')
+                    ->sortable(),
                 TextColumn::make('payment_status')
                     ->badge()
                     ->color(fn ($state): string => match ($state) {
@@ -34,17 +44,22 @@ class QrisPaymentsTable
                         PaymentStatus::Failed, PaymentStatus::Cancelled => 'danger',
                         default => 'gray',
                     }),
-                TextColumn::make('total_amount')->money('IDR'),
-                TextColumn::make('created_at')->dateTime()->sortable()->label('Time'),
+                TextColumn::make('paid_at')
+                    ->dateTime()
+                    ->sortable(),
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->label('Created At'),
             ])
             ->filters([
+                SelectFilter::make('organization_id')
+                    ->relationship('organization', 'name')
+                    ->label('Organization')
+                    ->searchable()
+                    ->preload(),
                 SelectFilter::make('payment_status')
-                    ->options([
-                        'pending' => 'Pending',
-                        'paid' => 'Paid',
-                        'failed' => 'Failed',
-                        'cancelled' => 'Cancelled',
-                    ]),
+                    ->options(PaymentStatus::class),
                 Filter::make('created_at')
                     ->form([
                         DatePicker::make('created_from'),
@@ -66,28 +81,76 @@ class QrisPaymentsTable
                 Action::make('check_status')
                     ->label('Check Status')
                     ->icon('heroicon-o-arrow-path')
-                    ->action(function ($record) {
-                        // Dummy check status logic for now
-                        Notification::make()
-                            ->title('Status Checked')
-                            ->body('Status from Sekeco: ' . $record->payment_status)
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn ($record) => $record->payment_status === 'pending'),
+                    ->color('info')
+                    ->visible(fn ($record) => 
+                        $record->payment_status === PaymentStatus::Pending &&
+                        !empty($record->payment_reference)
+                    )
+                    ->action(function ($record, QrisService $qris) {
+                        try {
+                            $result = $qris->check($record->payment_reference);
+                            
+                            if (($result['status'] ?? '') === 'paid') {
+                                $record->update([
+                                    'payment_status' => PaymentStatus::Paid,
+                                    'payment_amount' => $record->total_amount,
+                                    'bill_status' => BillStatus::Closed,
+                                    'order_status' => OrderStatus::Completed,
+                                    'paid_at' => now(),
+                                    'closed_at' => now(),
+                                ]);
+                                
+                                Notification::make()
+                                    ->title('Payment Paid')
+                                    ->body("Payment for order {$record->order_number} has been paid.")
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Payment Pending')
+                                    ->body("Payment status: " . ($result['status'] ?? 'pending'))
+                                    ->warning()
+                                    ->send();
+                            }
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Failed to Check Status')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
                 Action::make('cancel_payment')
                     ->label('Cancel')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->action(function ($record) {
-                        $record->update(['payment_status' => 'cancelled']);
-                        Notification::make()
-                            ->title('Payment Cancelled')
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn ($record) => $record->payment_status === 'pending'),
+                    ->visible(fn ($record) => 
+                        $record->payment_status === PaymentStatus::Pending &&
+                        !empty($record->payment_reference)
+                    )
+                    ->action(function ($record, QrisService $qris) {
+                        try {
+                            $qris->cancel($record->payment_reference);
+                            
+                            $record->update([
+                                'payment_status' => PaymentStatus::Cancelled,
+                                'payment_reference' => null,
+                            ]);
+                            
+                            Notification::make()
+                                ->title('Payment Cancelled')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Failed to Cancel')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ])
             ->toolbarActions([]);
     }

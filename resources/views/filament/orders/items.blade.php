@@ -1,9 +1,9 @@
 <div class="space-y-4">
-    @if ($record->orderItems->isEmpty())
+    @if ($record->items->isEmpty())
         <p class="text-gray-500">No items found for this order.</p>
     @else
         <div class="divide-y divide-gray-200 dark:divide-white/10 border-b border-t border-gray-200 dark:border-white/10">
-            @foreach ($record->orderItems as $item)
+            @foreach ($record->items as $item)
                 <div class="py-3 flex justify-between items-center">
                     <div>
                         <div class="font-medium text-gray-900 dark:text-white">

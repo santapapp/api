@@ -50,13 +50,13 @@ class OrderPaymentTest extends TestCase
 
         app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($this->organization->id);
         
-        $this->organization->users()->attach($this->owner->id, ['role_name' => 'owner']);
+        $this->organization->members()->attach($this->owner->id, ['role' => 'owner']);
         $this->owner->assignRole('owner');
 
-        $this->organization->users()->attach($this->cashier->id, ['role_name' => 'cashier']);
+        $this->organization->members()->attach($this->cashier->id, ['role' => 'cashier']);
         $this->cashier->assignRole('cashier');
 
-        $this->organization->users()->attach($this->kitchen->id, ['role_name' => 'kitchen']);
+        $this->organization->members()->attach($this->kitchen->id, ['role' => 'kitchen']);
         $this->kitchen->assignRole('kitchen');
 
         $this->table = DiningTable::create([
