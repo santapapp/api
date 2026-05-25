@@ -7,6 +7,7 @@ namespace App\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 use Dedoc\Scramble\Scramble;
@@ -23,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::define('viewApiDocs', function ($user = null) {
+            return (bool) config('app.scramble_docs_enabled', false);
+        });
+
         // Register custom API groups for Scramble
         Scramble::registerApi('mobile', [
             'info' => [

@@ -41,6 +41,8 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    'scramble_docs_enabled' => env('SCRAMBLE_DOCS_ENABLED', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL
