@@ -152,5 +152,8 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->command->info('✅ Seeder selesai: 4 users, 1 org, 4 meja, 5 products (1 dengan variant+addon)');
+
+        // Tenant kedua: Kobesah Godean
+        $this->call(KobesahGodeanSeeder::class);
     }
 }

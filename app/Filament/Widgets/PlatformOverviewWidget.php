@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
-use App\Enums\OrganizationStatus;
 use App\Models\Organization;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -20,14 +19,14 @@ class PlatformOverviewWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-users')
                 ->color('info'),
             Stat::make('Total Organizations', Organization::count())
-                ->description('Active, inactive, and suspended')
+                ->description('Active and inactive organizations')
                 ->descriptionIcon('heroicon-m-building-office')
                 ->color('primary'),
-            Stat::make('Active Organizations', Organization::where('status', OrganizationStatus::Active)->count())
+            Stat::make('Active Organizations', Organization::where('is_active', 'true')->count())
                 ->description('Currently active organizations')
                 ->color('success'),
-            Stat::make('Suspended Organizations', Organization::where('status', OrganizationStatus::Suspended)->count())
-                ->description('Suspended organizations')
+            Stat::make('Inactive Organizations', Organization::where('is_active', 'false')->count())
+                ->description('Inactive organizations')
                 ->color('danger'),
         ];
     }

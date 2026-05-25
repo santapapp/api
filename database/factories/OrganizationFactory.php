@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\OrganizationStatus;
 use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -28,13 +27,7 @@ class OrganizationFactory extends Factory
         return [
             'name' => $name,
             'slug' => Str::slug($name) . '-' . Str::random(4),
-            'email' => $this->faker->companyEmail(),
-            'phone' => $this->faker->phoneNumber(),
-            'address' => $this->faker->address(),
-            'status' => OrganizationStatus::Active,
-            'country' => 'ID',
-            'timezone' => 'Asia/Jakarta',
-            'currency' => 'IDR',
+            'is_active' => 'true',
         ];
     }
 }

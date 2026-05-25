@@ -63,6 +63,6 @@ class Menu extends Model
      */
     public function scopeAvailable(Builder $query): Builder
     {
-        return $query->where('is_available', true);
+        return $query->where('is_available', 'true');
     }
 }

@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiningTable;
 use App\Models\Menu;
 use App\Models\Order;
+use App\Models\Organization;
 use App\Models\OrderItem;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
@@ -21,12 +22,30 @@ use Illuminate\Support\Str;
 class CustomerController extends Controller
 {
     /**
+     * Data publik organisasi berdasarkan slug.
+     */
+    public function organization(string $slug): JsonResponse
+    {
+        $org = Organization::where('slug', $slug)
+            ->where('is_active', 'true')
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => [
+                'id' => $org->id,
+                'name' => $org->name,
+                'slug' => $org->slug,
+            ]
+        ]);
+    }
+
+    /**
      * Scan QR meja → dapatkan public_token.
      */
     public function scanTable(string $qrToken): JsonResponse
     {
         $table = DiningTable::where('qr_token', $qrToken)
-            ->where('is_active', true)
+            ->where('is_active', 'true')
             ->firstOrFail();
 
         // Cari order aktif di meja ini
@@ -82,9 +101,9 @@ class CustomerController extends Controller
             ->products()
             ->available()
             ->with(['children' => function ($q) {
-                $q->where('is_available', true)
+                $q->where('is_available', 'true')
                     ->with(['children' => function ($q2) {
-                        $q2->where('is_available', true)->orderBy('sort_order');
+                        $q2->where('is_available', 'true')->orderBy('sort_order');
                     }])
                     ->orderBy('sort_order');
             }])
@@ -123,7 +142,7 @@ class CustomerController extends Controller
 
         foreach ($request->items as $itemData) {
             $menu = Menu::where('organization_id', $order->organization_id)
-                ->where('is_available', true)
+                ->where('is_available', 'true')
                 ->findOrFail($itemData['menu_id']);
 
             $item = OrderItem::create([

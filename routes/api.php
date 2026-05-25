@@ -72,6 +72,9 @@ Route::prefix('v1')->as('api.v1.')->group(function (): void {
     // Customer (Public)
     // ============================================================
     Route::prefix('customer')->as('customer.')->group(function (): void {
+        // Data organisasi berdasarkan slug
+        Route::get('/organization/{slug}', [CustomerController::class, 'organization'])->name('organization');
+
         // Scan QR meja (public, tanpa auth)
         Route::get('/table/{qrToken}', [CustomerController::class, 'scanTable'])->name('table.scan');
 

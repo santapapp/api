@@ -40,8 +40,8 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Hanya user yang punya role 'administrator' global yang bisa masuk Filament
-        return $this->hasRole('administrator');
+        // Hanya admin@santap.app yang bisa mengakses Filament Panel (Superadmin)
+        return $this->email === 'admin@santap.app';
     }
 
     public function organizations(): BelongsToMany
