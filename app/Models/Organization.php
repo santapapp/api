@@ -17,12 +17,46 @@ class Organization extends Model
         'name',
         'slug',
         'is_active',
+        // Identitas visual
+        'logo',
+        'banner',
+        // Kontak
+        'phone',
+        'email',
+        // Alamat
+        'address',
+        'city',
+        'province',
+        'postal_code',
+        // Koordinat
+        'latitude',
+        'longitude',
+        // Lokalisasi
+        'timezone',
+        'currency',
+        // Pajak
+        'tax_enabled',
+        'tax_rate',
+        // Service charge
+        'service_charge_enabled',
+        'service_charge_rate',
+        // JSON
+        'opening_hours',
+        'settings',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'is_active'              => 'boolean',
+            'latitude'               => 'decimal:8',
+            'longitude'              => 'decimal:8',
+            'tax_enabled'            => 'boolean',
+            'tax_rate'               => 'decimal:2',
+            'service_charge_enabled' => 'boolean',
+            'service_charge_rate'    => 'decimal:2',
+            'opening_hours'          => 'array',
+            'settings'               => 'array',
         ];
     }
 

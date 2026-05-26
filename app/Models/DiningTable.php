@@ -17,14 +17,20 @@ class DiningTable extends Model
     protected $fillable = [
         'organization_id',
         'name',
+        'code',
+        'capacity',
+        'location',
         'qr_token',
         'is_active',
+        'metadata',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'capacity'  => 'integer',
+            'metadata'  => 'array',
         ];
     }
 

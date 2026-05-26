@@ -322,7 +322,7 @@
             </a>
 
             <!-- Customer Web API Card -->
-            <a href="/docs/api/customer-web" class="card cyan">
+            <a href="/docs/api/web-customer" class="card cyan">
                 <div>
                     <div class="icon-container">
                         <!-- Globe/Web Icon SVG -->

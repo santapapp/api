@@ -20,18 +20,29 @@ class Menu extends Model
         'parent_id',
         'type',
         'name',
+        'image',
+        'sku',
+        'description',
         'price',
         'is_available',
+        'is_required',
+        'min_select',
+        'max_select',
         'sort_order',
+        'metadata',
     ];
 
     protected function casts(): array
     {
         return [
-            'type' => MenuType::class,
-            'price' => 'decimal:2',
+            'type'         => MenuType::class,
+            'price'        => 'decimal:2',
             'is_available' => 'boolean',
-            'sort_order' => 'integer',
+            'is_required'  => 'boolean',
+            'min_select'   => 'integer',
+            'max_select'   => 'integer',
+            'sort_order'   => 'integer',
+            'metadata'     => 'array',
         ];
     }
 
@@ -63,6 +74,14 @@ class Menu extends Model
      */
     public function scopeAvailable(Builder $query): Builder
     {
-        return $query->where('is_available', 'true');
+        return $query->where('is_available', true);
+    }
+
+    /**
+     * Scope: variant groups dan addon groups (selector rules).
+     */
+    public function scopeGroups(Builder $query): Builder
+    {
+        return $query->whereIn('type', [MenuType::VariantGroup, MenuType::AddonGroup]);
     }
 }

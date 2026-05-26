@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -23,6 +24,12 @@ class User extends Authenticatable implements FilamentUser
         'name',
         'email',
         'password',
+        'phone',
+        'avatar',
+        'status',
+        'last_login_at',
+        'is_superadmin',
+        'metadata',
     ];
 
     protected $hidden = [
@@ -34,14 +41,17 @@ class User extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'status'            => UserStatus::class,
+            'last_login_at'     => 'datetime',
+            'is_superadmin'     => 'boolean',
+            'metadata'          => 'array',
         ];
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Hanya admin@santap.app yang bisa mengakses Filament Panel (Superadmin)
-        return $this->email === 'admin@santap.app';
+        return $this->is_superadmin === true;
     }
 
     public function organizations(): BelongsToMany
