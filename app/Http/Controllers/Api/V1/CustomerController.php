@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\BillStatus;
-use App\Enums\ItemType;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
@@ -16,12 +15,13 @@ use App\Http\Resources\OrderDetailResource;
 use App\Models\DiningTable;
 use App\Models\Menu;
 use App\Models\Order;
-use App\Models\OrderItem;
 use App\Models\Organization;
+use App\Services\OrderItemService;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
@@ -151,7 +151,7 @@ class CustomerController extends Controller
     public function showOrder(Request $request): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
-        $order->load(['items.children', 'diningTable']);
+        $order->load(['items.selectedVariants', 'diningTable']);
 
         return response()->json([
             'data' => new OrderDetailResource($order),
@@ -159,68 +159,26 @@ class CustomerController extends Controller
     }
 
     /**
-     * Tambah item ke order (customer) — snapshot item_type dari menu.type.
+     * Tambah item ke order (customer).
+     *
+     * Payload menggunakan `selected_variants` untuk memilih variant.
+     * Harga final (base_price + variant_total = unit_price) dikalkulasi
+     * sepenuhnya di backend. Seluruh proses dibungkus DB transaction.
      *
      * Endpoint ini memerlukan header `X-Public-Token: {public_token}`.
+     *
+     * @throws ValidationException
      */
-    public function addItems(AddItemsRequest $request): JsonResponse
+    public function addItems(AddItemsRequest $request, OrderItemService $service): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
 
-        foreach ($request->items as $itemData) {
-            $menu = Menu::where('organization_id', $order->organization_id)
-                ->where('is_available', true)   // fix: boolean
-                ->findOrFail($itemData['menu_id']);
-
-            $itemType = match ($menu->type->value) {
-                'variant' => ItemType::Variant->value,
-                'addon'   => ItemType::Addon->value,
-                default   => ItemType::Product->value,
-            };
-
-            $qty      = $itemData['quantity'];
-            $subtotal = round((float) $menu->price * $qty, 2);
-
-            $item = OrderItem::create([
-                'order_id'  => $order->id,
-                'menu_id'   => $menu->id,
-                'item_type' => $itemType,
-                'name'      => $menu->name,
-                'price'     => $menu->price,
-                'quantity'  => $qty,
-                'subtotal'  => $subtotal,
-                'note'      => $itemData['note'] ?? null,
-            ]);
-
-            if (! empty($itemData['children'])) {
-                foreach ($itemData['children'] as $childData) {
-                    $childMenu = Menu::where('organization_id', $order->organization_id)
-                        ->findOrFail($childData['menu_id']);
-
-                    $childItemType = match ($childMenu->type->value) {
-                        'variant' => ItemType::Variant->value,
-                        'addon'   => ItemType::Addon->value,
-                        default   => ItemType::Product->value,
-                    };
-
-                    OrderItem::create([
-                        'order_id'       => $order->id,
-                        'menu_id'        => $childMenu->id,
-                        'parent_item_id' => $item->id,
-                        'item_type'      => $childItemType,
-                        'name'           => $childMenu->name,
-                        'price'          => $childMenu->price,
-                        'quantity'       => $qty,
-                        'subtotal'       => round((float) $childMenu->price * $qty, 2),
-                    ]);
-                }
-            }
-        }
-
-        $order->recalculate();
+        $service->addItems($order, $request->validated()['items']);
 
         return response()->json([
-            'data'    => new OrderDetailResource($order->fresh()->load('items.children', 'diningTable')),
+            'data'    => new OrderDetailResource(
+                $order->fresh()->load('items.selectedVariants', 'diningTable')
+            ),
             'message' => 'Item berhasil ditambahkan.',
         ]);
     }

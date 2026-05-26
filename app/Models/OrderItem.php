@@ -21,7 +21,11 @@ class OrderItem extends Model
         'parent_item_id',
         'item_type',
         'name',
-        'price',
+        // Harga breakdown
+        'base_price',
+        'variant_total',
+        'unit_price',
+        'price',       // Legacy: sama dengan unit_price — dipertahankan untuk backward compat
         'quantity',
         'subtotal',
         'item_status',
@@ -32,12 +36,15 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
-            'item_type'   => ItemType::class,
-            'item_status' => ItemStatus::class,
-            'price'       => 'decimal:2',
-            'subtotal'    => 'decimal:2',
-            'quantity'    => 'integer',
-            'metadata'    => 'array',
+            'item_type'    => ItemType::class,
+            'item_status'  => ItemStatus::class,
+            'base_price'   => 'decimal:2',
+            'variant_total'=> 'decimal:2',
+            'unit_price'   => 'decimal:2',
+            'price'        => 'decimal:2',
+            'subtotal'     => 'decimal:2',
+            'quantity'     => 'integer',
+            'metadata'     => 'array',
         ];
     }
 
@@ -53,14 +60,28 @@ class OrderItem extends Model
         return $this->belongsTo(Menu::class);
     }
 
+    /**
+     * Parent item — dipertahankan untuk backward compat (addon model lama).
+     */
     public function parentItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class, 'parent_item_id');
     }
 
+    /**
+     * Child items — dipertahankan untuk backward compat (addon model lama).
+     */
     public function children(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'parent_item_id');
+    }
+
+    /**
+     * Variant pilihan customer — model baru canonical.
+     */
+    public function selectedVariants(): HasMany
+    {
+        return $this->hasMany(OrderItemVariant::class);
     }
 
     // ── Helpers ────────────────────────────────────────────────────
@@ -86,13 +107,17 @@ class OrderItem extends Model
     }
 
     /**
-     * Hitung dan simpan subtotal = price × quantity.
-     * Dipanggil setiap kali item dibuat atau quantity diupdate.
+     * Recalculate subtotal = unit_price × quantity.
+     * unit_price = base_price + variant_total.
      */
     public function syncSubtotal(): void
     {
+        $unitPrice = round((float) $this->base_price + (float) $this->variant_total, 2);
+
         $this->update([
-            'subtotal' => round((float) $this->price * $this->quantity, 2),
+            'unit_price' => $unitPrice,
+            'price'      => $unitPrice, // sync legacy field
+            'subtotal'   => round($unitPrice * $this->quantity, 2),
         ]);
     }
 }
