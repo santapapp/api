@@ -62,6 +62,7 @@ return [
         'X-Requested-With',
         'X-Org-ID',
         'X-Public-Token',
+        'X-Customer-Session',
     ],
 
     /*

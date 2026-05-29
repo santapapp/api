@@ -25,6 +25,10 @@ class MenuResource extends JsonResource
             'min_select'   => $this->min_select,
             'max_select'   => $this->max_select,
             'sort_order'   => $this->sort_order,
+            /**
+             * Data fleksibel tambahan. Untuk produk, dapat menyimpan kategori dalam format {"category": "makanan"}.
+             * @var array{category?: string}|null
+             */
             'metadata'     => $this->metadata,
             'children'     => MenuResource::collection($this->whenLoaded('children')),
         ];

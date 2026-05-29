@@ -179,8 +179,7 @@ class Order extends Model
         $today  = now()->format('Ymd');
         $prefix = "ORD-{$today}-";
 
-        $lastOrder = static::where('organization_id', $organizationId)
-            ->where('order_number', 'like', "{$prefix}%")
+        $lastOrder = static::where('order_number', 'like', "{$prefix}%")
             ->orderByDesc('order_number')
             ->first();
 
