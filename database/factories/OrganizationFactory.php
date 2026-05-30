@@ -27,7 +27,7 @@ class OrganizationFactory extends Factory
         return [
             'name' => $name,
             'slug' => Str::slug($name) . '-' . Str::random(4),
-            'is_active' => 'true',
+            'is_active' => true,
         ];
     }
 }

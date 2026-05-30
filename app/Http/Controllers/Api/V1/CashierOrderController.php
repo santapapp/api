@@ -36,6 +36,10 @@ class CashierOrderController extends Controller
         $orgId  = app(OrganizationContext::class)->getOrganizationId();
         $orders = Order::where('organization_id', $orgId)
             ->whereDate('created_at', today())
+            ->where(function ($query) {
+                $query->where('order_type', '!=', OrderType::TableOrder)
+                      ->orWhere('payment_status', '!=', PaymentStatus::Pending);
+            })
             ->with(['diningTable', 'createdBy'])
             ->orderByDesc('created_at')
             ->get();

@@ -20,9 +20,10 @@ class DatabaseSeeder extends Seeder
         // 1. Admin user
         // ============================================================
         $admin = User::create([
-            'name' => 'Admin Santap',
-            'email' => 'admin@santap.app',
-            'password' => bcrypt('password'),
+            'name'         => 'Admin Santap',
+            'email'        => 'admin@santap.app',
+            'password'     => bcrypt('password'),
+            'is_superadmin' => true,
         ]);
 
         // ============================================================

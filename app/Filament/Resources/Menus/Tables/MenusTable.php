@@ -25,8 +25,26 @@ class MenusTable
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('metadata.category')
+                    ->label('Category')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('type')
                     ->badge()
+                    ->formatStateUsing(fn ($state) => match($state->value ?? $state) {
+                        'product' => 'Product',
+                        'variant_group' => 'Variant Group',
+                        'variant' => 'Variant',
+                        'addon_group' => 'Addon Group',
+                        'addon' => 'Addon',
+                        default => $state->value ?? $state,
+                    })
+                    ->color(fn ($state) => match($state->value ?? $state) {
+                        'product' => 'success',
+                        'variant_group', 'variant' => 'info',
+                        'addon_group', 'addon' => 'warning',
+                        default => 'gray',
+                    })
                     ->searchable(),
                 TextColumn::make('parent.name')
                     ->label('Parent')
@@ -34,6 +52,10 @@ class MenusTable
                     ->searchable(),
                 TextColumn::make('price')
                     ->money('IDR')
+                    ->sortable(),
+                TextColumn::make('children_count')
+                    ->counts('children')
+                    ->label('Options/Items')
                     ->sortable(),
                 IconColumn::make('is_available')
                     ->label('Available')
@@ -54,6 +76,19 @@ class MenusTable
                     ->preload(),
                 SelectFilter::make('type')
                     ->options(MenuType::class),
+                SelectFilter::make('category')
+                    ->label('Category')
+                    ->options(function () {
+                        return \App\Models\Menu::whereNotNull('metadata->category')
+                            ->distinct()
+                            ->pluck('metadata->category', 'metadata->category')
+                            ->toArray();
+                    })
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data) {
+                        if (!empty($data['value'])) {
+                            $query->where('metadata->category', $data['value']);
+                        }
+                    }),
                 TernaryFilter::make('is_available')
                     ->label('Available'),
             ])

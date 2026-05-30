@@ -55,6 +55,11 @@ class OrderDetailResource extends JsonResource
                 'name'     => $this->diningTable->name,
                 'code'     => $this->diningTable->code,
                 'location' => $this->diningTable->location,
+                'organization' => $this->diningTable->relationLoaded('organization') ? [
+                    'id' => $this->diningTable->organization->id,
+                    'name' => $this->diningTable->organization->name,
+                    'slug' => $this->diningTable->organization->slug,
+                ] : null,
             ]),
             'created_by' => $this->whenLoaded('createdBy', fn () => [
                 'id'   => $this->createdBy->id,

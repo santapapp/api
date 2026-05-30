@@ -37,7 +37,8 @@ class MenuResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            \App\Filament\Resources\Menus\RelationManagers\GroupsRelationManager::class,
+            \App\Filament\Resources\Menus\RelationManagers\ItemsRelationManager::class,
         ];
     }
 

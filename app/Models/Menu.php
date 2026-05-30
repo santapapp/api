@@ -84,4 +84,12 @@ class Menu extends Model
     {
         return $query->whereIn('type', [MenuType::VariantGroup, MenuType::AddonGroup]);
     }
+
+    /**
+     * Scope: variant dan addon.
+     */
+    public function scopeItems(Builder $query): Builder
+    {
+        return $query->whereIn('type', [MenuType::Variant, MenuType::Addon]);
+    }
 }

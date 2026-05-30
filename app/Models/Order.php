@@ -50,6 +50,7 @@ class Order extends Model
         // Payment
         'payment_method',
         'payment_reference',
+        'payment_expires_at',
         // Timestamps
         'note',
         'paid_at',
@@ -79,6 +80,7 @@ class Order extends Model
             'opened_at'                    => 'datetime',
             'closed_at'                    => 'datetime',
             'cancelled_at'                 => 'datetime',
+            'payment_expires_at'           => 'datetime',
             'metadata'                     => 'array',
         ];
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -60,6 +61,10 @@ class Organization extends Model
         ];
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // Relations
+    // ──────────────────────────────────────────────────────────────
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'organization_members')
@@ -71,6 +76,22 @@ class Organization extends Model
     {
         return $this->belongsToMany(User::class, 'organization_members')
             ->wherePivot('role', 'owner')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function cashiers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'organization_members')
+            ->wherePivot('role', 'cashier')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function kitchenStaff(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'organization_members')
+            ->wherePivot('role', 'kitchen')
             ->withPivot('role')
             ->withTimestamps();
     }
@@ -98,5 +119,54 @@ class Organization extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Scopes
+    // ──────────────────────────────────────────────────────────────
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeInactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Jumlah member berdasarkan role tertentu.
+     */
+    public function getMembersCountByRole(string $role): int
+    {
+        return $this->memberRecords()->where('role', $role)->count();
+    }
+
+    /**
+     * Ringkasan komposisi tim dalam format string.
+     * Contoh: "Owner: Budi | Cashier: Ani, Raka | Kitchen: Dimas"
+     */
+    public function getMembersSummary(): string
+    {
+        $membersByRole = $this->memberRecords()
+            ->with('user:id,name')
+            ->get()
+            ->groupBy('role');
+
+        $parts = [];
+
+        foreach (['owner' => 'Owner', 'cashier' => 'Cashier', 'kitchen' => 'Kitchen'] as $role => $label) {
+            if ($membersByRole->has($role)) {
+                $names    = $membersByRole[$role]->pluck('user.name')->join(', ');
+                $parts[]  = "{$label}: {$names}";
+            }
+        }
+
+        return empty($parts) ? '—' : implode(' | ', $parts);
     }
 }

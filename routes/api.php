@@ -82,6 +82,10 @@ Route::prefix('customer')->as('customer.')->group(function (): void {
     Route::get('/organization/{slug}', [CustomerController::class, 'organization'])->name('organization');
     Route::get('/table/{qrToken}', [CustomerController::class, 'scanTable'])->name('table.scan');
     Route::get('/menu', [CustomerController::class, 'menu'])->name('menu');
+    Route::get('/orders/{order}', [CustomerController::class, 'showPublicOrder'])->name('public.order.show');
+    Route::post('/order', [CustomerController::class, 'createOrder'])
+        ->middleware('throttle:customer-order')
+        ->name('order.create');
 
     Route::middleware('ensure.customer.token')->group(function (): void {
         Route::get('/order', [CustomerController::class, 'showOrder'])->name('order.show');
