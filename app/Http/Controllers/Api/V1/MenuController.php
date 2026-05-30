@@ -13,10 +13,20 @@ use App\Models\Menu;
 use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Menu dikelola dalam satu tabel `menus` dengan kolom `type` dan `parent_id`.
+ * Struktur tree: Product → VariantGroup/AddonGroup → Variant/Addon.
+ * Endpoint scoped per organisasi lewat header `X-Org-ID`.
+ *
+ * @tags Mobile Menu
+ */
 class MenuController extends Controller
 {
     /**
-     * List menu tree: products + children (eager loaded 2 levels deep).
+     * List menu dalam bentuk tree.
+     *
+     * Mengembalikan produk root beserta children-nya 2 level
+     * (variant_group/addon_group lalu variant/addon).
      */
     public function index(): JsonResponse
     {
@@ -34,7 +44,11 @@ class MenuController extends Controller
     }
 
     /**
-     * Buat menu item baru (product, variant_group, variant, addon_group, addon).
+     * Buat menu baru.
+     *
+     * Tipe valid: `product`, `variant_group`, `variant`, `addon_group`, `addon`.
+     * Hierarki: variant_group/addon_group harus punya parent product;
+     * variant harus di bawah variant_group; addon harus di bawah addon_group.
      */
     public function store(StoreMenuRequest $request): JsonResponse
     {
@@ -69,6 +83,9 @@ class MenuController extends Controller
         ], 201);
     }
 
+    /**
+     * Update menu.
+     */
     public function update(UpdateMenuRequest $request, int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
@@ -82,6 +99,9 @@ class MenuController extends Controller
         ]);
     }
 
+    /**
+     * Hapus menu (otomatis cascade ke children-nya).
+     */
     public function destroy(int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
@@ -92,7 +112,7 @@ class MenuController extends Controller
     }
 
     /**
-     * Toggle is_available.
+     * Toggle ketersediaan menu (is_available on/off).
      */
     public function toggle(int $id): JsonResponse
     {

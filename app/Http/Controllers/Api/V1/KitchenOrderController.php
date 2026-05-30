@@ -14,10 +14,18 @@ use App\Models\OrderItem;
 use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Antrian dapur per organisasi (header `X-Org-ID`).
+ *
+ * @tags Mobile Kitchen
+ */
 class KitchenOrderController extends Controller
 {
     /**
-     * List order masuk untuk kitchen (polling).
+     * Antrian order untuk dapur.
+     *
+     * Mengembalikan order dengan `order_status` `confirmed` atau `preparing`,
+     * beserta item-itemnya. Cocok untuk polling layar dapur.
      */
     public function index(): JsonResponse
     {
@@ -28,7 +36,7 @@ class KitchenOrderController extends Controller
                 OrderStatus::Confirmed,
                 OrderStatus::Preparing,
             ])
-            ->with(['items.children', 'diningTable'])
+            ->with(['items', 'diningTable'])
             ->orderBy('created_at')
             ->get();
 
@@ -38,7 +46,11 @@ class KitchenOrderController extends Controller
     }
 
     /**
-     * Update status item dari kitchen.
+     * Update status satu item order dari dapur.
+     *
+     * Nilai `item_status` yang valid: `preparing`, `ready`, `served`, `cancelled`.
+     * Jika semua item sudah `served`, `order_status` otomatis menjadi `ready`;
+     * jika sebelumnya `confirmed`, otomatis menjadi `preparing`.
      */
     public function updateItemStatus(UpdateItemStatusRequest $request, int $id): JsonResponse
     {
@@ -50,10 +62,9 @@ class KitchenOrderController extends Controller
 
         $item->update(['item_status' => $request->item_status]);
 
-        // Cek apakah semua root items sudah served → update order_status ke ready
+        // Cek apakah semua items sudah served → update order_status ke ready
         $order     = $item->order;
         $allServed = $order->allItems()
-            ->whereNull('parent_item_id')
             ->where('item_status', '!=', ItemStatus::Served->value)
             ->where('item_status', '!=', ItemStatus::Cancelled->value)
             ->doesntExist();

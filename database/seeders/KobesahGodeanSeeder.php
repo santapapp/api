@@ -547,28 +547,19 @@ class KobesahGodeanSeeder extends Seeder
     {
         foreach ($items as [$menu, $qty, $note, $children]) {
             /** @var Menu $menu */
-            $item = OrderItem::create([
-                'order_id'   => $order->id,
-                'menu_id'    => $menu->id,
-                'name'       => $menu->name,
-                'price'      => $menu->price,
-                'quantity'   => $qty,
-                'item_status'=> $itemStatus,
-                'note'       => $note,
+            OrderItem::create([
+                'order_id'    => $order->id,
+                'menu_id'     => $menu->id,
+                'name'        => $menu->name,
+                'base_price'  => $menu->price,
+                'unit_price'  => $menu->price,
+                'price'       => $menu->price,
+                'quantity'    => $qty,
+                'subtotal'    => round((float) $menu->price * $qty, 2),
+                'item_status' => $itemStatus,
+                'note'        => $note,
             ]);
-
-            foreach ($children as $childMenu) {
-                /** @var Menu $childMenu */
-                OrderItem::create([
-                    'order_id'      => $order->id,
-                    'menu_id'       => $childMenu->id,
-                    'parent_item_id'=> $item->id,
-                    'name'          => $childMenu->name,
-                    'price'         => $childMenu->price,
-                    'quantity'      => $qty,
-                    'item_status'   => $itemStatus,
-                ]);
-            }
+            // $children diabaikan — variant/addon tidak lagi disimpan sebagai child order_items
         }
     }
 }

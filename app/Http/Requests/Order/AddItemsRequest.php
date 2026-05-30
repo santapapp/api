@@ -20,8 +20,10 @@ class AddItemsRequest extends FormRequest
             'items.*.menu_id'             => ['required', 'integer', 'exists:menus,id'],
             'items.*.quantity'            => ['required', 'integer', 'min:1'],
             'items.*.note'                => ['nullable', 'string', 'max:500'],
-            'items.*.children'            => ['nullable', 'array'],
-            'items.*.children.*.menu_id'  => ['required', 'integer', 'exists:menus,id'],
+            // selected_variants — sama dengan customer flow
+            'items.*.selected_variants'                          => ['nullable', 'array'],
+            'items.*.selected_variants.*.variant_group_id'       => ['required', 'integer', 'exists:menus,id'],
+            'items.*.selected_variants.*.variant_id'             => ['required', 'integer', 'exists:menus,id'],
         ];
     }
 }

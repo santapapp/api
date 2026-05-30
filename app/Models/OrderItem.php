@@ -9,7 +9,6 @@ use App\Enums\ItemType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrderItem extends Model
 {
@@ -60,45 +59,11 @@ class OrderItem extends Model
         return $this->belongsTo(Menu::class);
     }
 
-    /**
-     * Parent item — dipertahankan untuk backward compat (addon model lama).
-     */
-    public function parentItem(): BelongsTo
-    {
-        return $this->belongsTo(OrderItem::class, 'parent_item_id');
-    }
-
-    /**
-     * Child items — dipertahankan untuk backward compat (addon model lama).
-     */
-    public function children(): HasMany
-    {
-        return $this->hasMany(OrderItem::class, 'parent_item_id');
-    }
-
-    /**
-     * Variant pilihan customer — model baru canonical.
-     */
-    public function selectedVariants(): HasMany
-    {
-        return $this->hasMany(OrderItemVariant::class);
-    }
-
     // ── Helpers ────────────────────────────────────────────────────
 
     public function isProduct(): bool
     {
         return $this->item_type === ItemType::Product;
-    }
-
-    public function isVariant(): bool
-    {
-        return $this->item_type === ItemType::Variant;
-    }
-
-    public function isAddon(): bool
-    {
-        return $this->item_type === ItemType::Addon;
     }
 
     public function isCancelled(): bool

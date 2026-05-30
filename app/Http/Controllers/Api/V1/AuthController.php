@@ -14,9 +14,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @tags Mobile Auth
+ */
 class AuthController extends Controller
 {
     /**
+     * Login staff (owner / cashier / kitchen).
+     *
+     * Mengembalikan data user beserta daftar organisasi yang diikuti
+     * (termasuk `role` per organisasi dari tabel `organization_members`)
+     * dan Bearer token untuk dipakai di endpoint berikutnya.
+     *
+     * Masukkan token ke tombol Authorize sebagai Bearer Token.
+     *
      * @unauthenticated
      */
     public function login(LoginRequest $request): JsonResponse
@@ -42,6 +53,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Logout — mencabut (revoke) token akses yang sedang dipakai.
+     */
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
@@ -49,6 +63,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'Berhasil logout.']);
     }
 
+    /**
+     * Profil user yang sedang login beserta daftar organisasi & role-nya.
+     */
     public function me(Request $request): JsonResponse
     {
         return response()->json([
@@ -56,6 +73,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Update profil user yang sedang login (nama, telepon, avatar).
+     */
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();

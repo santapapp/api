@@ -28,20 +28,28 @@ class ItemsRelationManager extends RelationManager
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('price')
+                TextColumn::make('base_price')
+                    ->label('Base Price')
+                    ->money('IDR')
+                    ->sortable(),
+                TextColumn::make('variant_total')
+                    ->label('Variant +')
+                    ->money('IDR')
+                    ->sortable(),
+                TextColumn::make('unit_price')
+                    ->label('Unit Price')
                     ->money('IDR')
                     ->sortable(),
                 TextColumn::make('quantity')
+                    ->sortable(),
+                TextColumn::make('subtotal')
+                    ->money('IDR')
                     ->sortable(),
                 TextColumn::make('item_status')
                     ->badge()
                     ->sortable(),
                 TextColumn::make('note')
                     ->placeholder('-'),
-                TextColumn::make('parent_item_id')
-                    ->label('Parent Item ID')
-                    ->placeholder('-')
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //

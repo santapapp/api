@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class Order extends Model
 {
@@ -143,10 +142,12 @@ class Order extends Model
     /**
      * Hitung ulang semua nilai finansial order.
      *
-     * Menghitung dari SEMUA order_items yang tidak cancelled
-     * (termasuk addon berbayar — bukan hanya root product).
+     * Hanya menghitung dari root order_items (parent_item_id IS NULL)
+     * yang tidak cancelled. Setiap root item sudah menyimpan subtotal
+     * yang mencakup base_price + variant_total (dari metadata).
+     *
      * Formula:
-     *   subtotal = SUM(subtotal dari semua item non-cancelled)
+     *   subtotal = SUM(subtotal dari root items non-cancelled)
      *   tax      = subtotal × tax_rate_snapshot / 100
      *   service  = subtotal × service_charge_rate_snapshot / 100
      *   total    = subtotal - discount + tax + service
@@ -154,8 +155,9 @@ class Order extends Model
     public function recalculate(): void
     {
         $subtotal = (float) $this->allItems()
+            ->whereNull('parent_item_id')
             ->where('item_status', '!=', ItemStatus::Cancelled->value)
-            ->sum(DB::raw('price * quantity'));
+            ->sum('subtotal');
 
         $taxRate      = (float) $this->tax_rate_snapshot;
         $serviceRate  = (float) $this->service_charge_rate_snapshot;

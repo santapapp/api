@@ -147,14 +147,13 @@ class AddItemsTest extends TestCase
             'subtotal'      => '40000.00',
         ]);
 
-        $this->assertDatabaseCount('order_item_variants', 0);
-
+        // Tidak ada table order_item_variants — snapshot ada di metadata
         $item = $response->json('data.items.0');
         $this->assertEquals('20000.00', $item['base_price']);
         $this->assertEquals('0.00', $item['variant_total']);
         $this->assertEquals('20000.00', $item['unit_price']);
         $this->assertEquals('40000.00', $item['subtotal']);
-        $this->assertEmpty($item['selected_variants']);
+        $this->assertEmpty($item['selected_options']);
     }
 
     public function test_adds_product_with_variant_and_calculates_price(): void
@@ -182,16 +181,12 @@ class AddItemsTest extends TestCase
             'subtotal'      => '36000.00',
         ]);
 
-        $this->assertDatabaseHas('order_item_variants', [
-            'variant_group_name' => 'Pilihan Rasa',
-            'variant_name'       => 'Mangga',
-            'price'              => '3000.00',
-        ]);
-
-        $sv = $response->json('data.items.0.selected_variants.0');
-        $this->assertEquals('Pilihan Rasa', $sv['variant_group_name']);
-        $this->assertEquals('Mangga', $sv['variant_name']);
-        $this->assertEquals('3000.00', $sv['price']);
+        // Snapshot tersimpan di metadata.selected_options
+        $item = $response->json('data.items.0');
+        $opt  = $item['selected_options'][0];
+        $this->assertEquals('Pilihan Rasa', $opt['group_name']);
+        $this->assertEquals('Mangga', $opt['option_name']);
+        $this->assertEquals(3000, $opt['price_delta']);
     }
 
     public function test_rejects_menu_that_is_not_a_product(): void
@@ -204,9 +199,7 @@ class AddItemsTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        // Service melempar ValidationException dengan dotted key "items.{index}.menu_id"
-        // Laravel menyimpannya di errors sebagai flat key, bukan nested array
-        $errors = $response->json('errors');
+        $errors   = $response->json('errors');
         $errorMsg = collect($errors)->flatten()->implode(' ');
         $this->assertStringContainsString('bukan type product', $errorMsg);
     }
@@ -227,7 +220,7 @@ class AddItemsTest extends TestCase
         ]]);
 
         $response->assertStatus(422);
-        $errors = $response->json('errors');
+        $errors   = $response->json('errors');
         $errorMsg = collect($errors)->flatten()->implode(' ');
         $this->assertStringContainsString('tidak ditemukan pada produk ini', $errorMsg);
     }
@@ -242,7 +235,7 @@ class AddItemsTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $errors = $response->json('errors');
+        $errors   = $response->json('errors');
         $errorMsg = collect($errors)->flatten()->implode(' ');
         $this->assertStringContainsString('wajib dipilih', $errorMsg);
     }
@@ -264,7 +257,7 @@ class AddItemsTest extends TestCase
         ]]);
 
         $response->assertStatus(422);
-        $errors = $response->json('errors');
+        $errors   = $response->json('errors');
         $errorMsg = collect($errors)->flatten()->implode(' ');
         $this->assertStringContainsString('maksimal', $errorMsg);
     }
@@ -283,7 +276,6 @@ class AddItemsTest extends TestCase
             'sort_order'      => 1,
         ]);
 
-        // Fetch ulang agar variant yang unavailable juga terbawa
         $unavailableVariant = Menu::where('name', 'Panas')->first();
 
         $response = $this->postItems([[
@@ -295,7 +287,7 @@ class AddItemsTest extends TestCase
         ]]);
 
         $response->assertStatus(422);
-        $errors = $response->json('errors');
+        $errors   = $response->json('errors');
         $errorMsg = collect($errors)->flatten()->implode(' ');
         $this->assertStringContainsString('tidak ditemukan pada group ini', $errorMsg);
     }
@@ -329,7 +321,9 @@ class AddItemsTest extends TestCase
             'note'          => 'Kurangi es',
         ]);
 
-        $this->assertDatabaseCount('order_item_variants', 2);
+        // Dua selected_options tersimpan di metadata
+        $item = $response->json('data.items.0');
+        $this->assertCount(2, $item['selected_options']);
     }
 
     public function test_rejects_menu_from_different_organization(): void
@@ -360,14 +354,12 @@ class AddItemsTest extends TestCase
     {
         $product = $this->makeProduct('Bakso', 15000);
 
-        // Test dengan field 'note' (lama)
         $r1 = $this->postItems([
             ['menu_id' => $product->id, 'quantity' => 1, 'note' => 'Pedas'],
         ]);
         $r1->assertStatus(200);
         $this->assertDatabaseHas('order_items', ['note' => 'Pedas']);
 
-        // Test dengan field 'notes' (baru)
         $r2 = $this->postItems([
             ['menu_id' => $product->id, 'quantity' => 1, 'notes' => 'Ekstra kuah'],
         ]);

@@ -199,7 +199,7 @@ class CustomerController extends Controller
     public function showOrder(Request $request): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
-        $order->load(['items.selectedVariants', 'diningTable.organization']);
+        $order->load(['items', 'diningTable.organization']);
 
         return response()->json([
             'data' => new OrderDetailResource($order),
@@ -211,7 +211,7 @@ class CustomerController extends Controller
      */
     public function showPublicOrder(Request $request, string $orderToken): JsonResponse
     {
-        $order = Order::with(['items.selectedVariants', 'diningTable.organization'])
+        $order = Order::with(['items', 'diningTable.organization'])
             ->where('order_number', $orderToken)
             ->orWhere('public_token', $orderToken)
             ->first();
@@ -253,7 +253,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'data'    => new OrderDetailResource(
-                $order->fresh()->load('items.selectedVariants', 'diningTable')
+                $order->fresh()->load('items', 'diningTable')
             ),
             'message' => 'Item berhasil ditambahkan.',
         ]);

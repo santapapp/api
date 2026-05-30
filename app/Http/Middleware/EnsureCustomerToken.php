@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Services\QrisService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCustomerToken
@@ -26,6 +30,34 @@ class EnsureCustomerToken
         if (! $order) {
             return response()->json([
                 'message' => 'Sesi tidak valid atau sudah berakhir.',
+            ], 403);
+        }
+
+        // Cek payment timeout — expire order jika sudah lewat deadline
+        if (
+            $order->payment_status === PaymentStatus::Pending &&
+            $order->payment_expires_at !== null &&
+            $order->payment_expires_at->isPast()
+        ) {
+            $order->update([
+                'order_status'   => OrderStatus::Cancelled,
+                'payment_status' => PaymentStatus::Failed,
+                'cancel_reason'  => 'Payment Timeout',
+                'cancelled_at'   => now(),
+            ]);
+
+            if ($order->payment_reference) {
+                try {
+                    app(QrisService::class)->cancel($order->payment_reference);
+                } catch (\Exception $e) {
+                    Log::warning("EnsureCustomerToken: gagal cancel QRIS order {$order->id}: " . $e->getMessage());
+                }
+            }
+
+            return response()->json([
+                'status'    => 'expired',
+                'message'   => 'Waktu pembayaran sudah habis. Silakan buat pesanan ulang.',
+                'can_retry' => true,
             ], 403);
         }
 

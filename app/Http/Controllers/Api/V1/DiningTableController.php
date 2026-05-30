@@ -13,8 +13,17 @@ use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
+/**
+ * Pengelolaan meja (`dining_tables`) per organisasi lewat header `X-Org-ID`.
+ * Setiap meja punya `qr_token` untuk dipindai pelanggan.
+ *
+ * @tags Mobile Table
+ */
 class DiningTableController extends Controller
 {
+    /**
+     * List semua meja pada organisasi aktif.
+     */
     public function index(): JsonResponse
     {
         $orgId  = app(OrganizationContext::class)->getOrganizationId();
@@ -27,6 +36,9 @@ class DiningTableController extends Controller
         ]);
     }
 
+    /**
+     * Buat meja baru. `qr_token` digenerate otomatis.
+     */
     public function store(StoreDiningTableRequest $request): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
@@ -47,6 +59,9 @@ class DiningTableController extends Controller
         ], 201);
     }
 
+    /**
+     * Update data meja.
+     */
     public function update(UpdateDiningTableRequest $request, int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
@@ -60,6 +75,9 @@ class DiningTableController extends Controller
         ]);
     }
 
+    /**
+     * Hapus meja.
+     */
     public function destroy(int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
@@ -69,6 +87,9 @@ class DiningTableController extends Controller
         return response()->json(['message' => 'Meja berhasil dihapus.']);
     }
 
+    /**
+     * Regenerate `qr_token` meja (token lama otomatis tidak berlaku).
+     */
     public function regenerateQr(int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\BillStatus;
-use App\Enums\ItemType;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
@@ -16,20 +15,33 @@ use App\Http\Requests\Order\PayCashRequest;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
-use App\Models\Menu;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Organization;
+use App\Services\OrderItemService;
 use App\Services\OrganizationContext;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
+/**
+ * Order dikelola oleh staff (cashier/owner) per organisasi lewat header `X-Org-ID`.
+ * Semua order tersimpan di tabel `orders`; itemnya di `order_items`.
+ *
+ * Open Bill menggunakan endpoint yang sama dengan cashier order, dibedakan
+ * lewat `order_type=open_bill` (lihat `store`). Open bill adalah row `orders`
+ * dengan `order_type=open_bill` dan `bill_status=open`.
+ *
+ * @tags Mobile Cashier Order
+ */
 class CashierOrderController extends Controller
 {
     /**
      * List order aktif hari ini.
+     *
+     * Order `table_order` yang masih `payment_status=pending` (belum dibayar
+     * dan berpotensi timeout) tidak ditampilkan agar dashboard tetap bersih.
      */
     public function index(): JsonResponse
     {
@@ -50,7 +62,14 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Buat order baru — snapshot tax/service dari organization saat create.
+     * Buat order baru (cashier order atau open bill).
+     *
+     * `order_type` valid: `cashier_order` atau `open_bill`.
+     * Untuk `open_bill`, `bill_status` di-set `open` dan `public_token`
+     * digenerate agar pelanggan bisa join. Order dibuat tanpa item —
+     * tambahkan item lewat endpoint add items. Rate pajak & service
+     * di-snapshot dari organisasi saat order dibuat. `created_by` diisi
+     * dari user yang sedang login.
      */
     public function store(StoreOrderRequest $request): JsonResponse
     {
@@ -95,13 +114,13 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Detail order lengkap dengan items.
+     * Detail order beserta item-itemnya.
      */
     public function show(int $id): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
         $order = Order::where('organization_id', $orgId)
-            ->with(['items.children', 'diningTable', 'createdBy', 'cancelledBy'])
+            ->with(['items', 'diningTable', 'createdBy', 'cancelledBy'])
             ->findOrFail($id);
 
         return response()->json([
@@ -110,74 +129,29 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Tambah item ke order — snapshot item_type dari menu.type.
+     * Tambah item ke order (cashier order atau open bill aktif).
+     *
+     * Setiap item: `menu_id` (harus produk), `quantity`, opsional `note`,
+     * dan opsional `selected_variants` — daftar pilihan variant berbentuk
+     * `{ variant_group_id, variant_id }`. Harga dikalkulasi backend dan
+     * snapshot pilihan disimpan di `order_items.metadata.selected_options`.
+     * Total order otomatis dihitung ulang.
      */
-    public function addItems(AddItemsRequest $request, int $id): JsonResponse
+    public function addItems(AddItemsRequest $request, int $id, OrderItemService $service): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
         $order = Order::where('organization_id', $orgId)->findOrFail($id);
 
-        foreach ($request->items as $itemData) {
-            $menu = Menu::where('organization_id', $orgId)->findOrFail($itemData['menu_id']);
-
-            // Snapshot item_type dari menu.type (product/variant/addon)
-            $itemType = match ($menu->type->value) {
-                'variant' => ItemType::Variant->value,
-                'addon'   => ItemType::Addon->value,
-                default   => ItemType::Product->value,
-            };
-
-            $qty      = $itemData['quantity'];
-            $subtotal = round((float) $menu->price * $qty, 2);
-
-            $item = OrderItem::create([
-                'order_id'   => $order->id,
-                'menu_id'    => $menu->id,
-                'item_type'  => $itemType,
-                'name'       => $menu->name,
-                'price'      => $menu->price,
-                'quantity'   => $qty,
-                'subtotal'   => $subtotal,
-                'note'       => $itemData['note'] ?? null,
-            ]);
-
-            // Children (variant/addon)
-            if (! empty($itemData['children'])) {
-                foreach ($itemData['children'] as $childData) {
-                    $childMenu = Menu::where('organization_id', $orgId)->findOrFail($childData['menu_id']);
-
-                    $childItemType = match ($childMenu->type->value) {
-                        'variant' => ItemType::Variant->value,
-                        'addon'   => ItemType::Addon->value,
-                        default   => ItemType::Product->value,
-                    };
-
-                    $childSubtotal = round((float) $childMenu->price * $qty, 2);
-
-                    OrderItem::create([
-                        'order_id'       => $order->id,
-                        'menu_id'        => $childMenu->id,
-                        'parent_item_id' => $item->id,
-                        'item_type'      => $childItemType,
-                        'name'           => $childMenu->name,
-                        'price'          => $childMenu->price,
-                        'quantity'       => $qty,
-                        'subtotal'       => $childSubtotal,
-                    ]);
-                }
-            }
-        }
-
-        $order->recalculate();
+        $service->addItems($order, $request->validated('items'));
 
         return response()->json([
-            'data'    => new OrderDetailResource($order->fresh()->load('items.children', 'diningTable', 'createdBy')),
+            'data'    => new OrderDetailResource($order->fresh()->load('items', 'diningTable', 'createdBy')),
             'message' => 'Item berhasil ditambahkan.',
         ]);
     }
 
     /**
-     * Hapus item dari order (cascade children via FK).
+     * Hapus satu item dari order. Total order otomatis dihitung ulang.
      */
     public function removeItem(int $orderId, int $itemId): JsonResponse
     {
@@ -192,7 +166,9 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Konfirmasi order → kirim ke kitchen.
+     * Konfirmasi order sehingga masuk antrian dapur.
+     *
+     * Hanya untuk order dengan `order_status=pending`.
      */
     public function confirm(int $id): JsonResponse
     {
@@ -212,7 +188,12 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Bayar cash — hitung change_amount.
+     * Bayar tunai (cash).
+     *
+     * Kirim `amount_received`. `change_amount` dihitung dari
+     * `amount_received - total_amount`. Order menjadi `payment_status=paid`,
+     * `bill_status=closed`, `order_status=completed`. Data pembayaran
+     * tersimpan langsung di tabel `orders`.
      */
     public function payCash(PayCashRequest $request, int $id): JsonResponse
     {
@@ -249,7 +230,10 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Buat QRIS payment.
+     * Buat pembayaran QRIS.
+     *
+     * Mengembalikan `qr_url` dan `payment_reference` dari penyedia QRIS.
+     * Order menjadi `payment_status=pending` hingga pembayaran terkonfirmasi.
      */
     public function payQris(int $id, QrisService $qris): JsonResponse
     {
@@ -279,7 +263,10 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Cek status QRIS dan update order jika sudah paid.
+     * Cek status pembayaran QRIS.
+     *
+     * Mengembalikan `payment_status` terkini dari tabel `orders`. Jika
+     * penyedia melaporkan `paid`, order otomatis ditandai lunas dan ditutup.
      */
     public function qrisStatus(int $id, QrisService $qris): JsonResponse
     {
@@ -312,7 +299,7 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Cancel QRIS payment aktif.
+     * Batalkan pembayaran QRIS yang sedang aktif.
      */
     public function qrisCancel(int $id, QrisService $qris): JsonResponse
     {
@@ -334,7 +321,11 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Close bill.
+     * Tutup bill (close).
+     *
+     * Dipakai untuk menutup open bill setelah pembayaran. `bill_status`
+     * menjadi `closed`; `order_status` menjadi `completed` kecuali order
+     * sudah `cancelled`.
      */
     public function close(int $id): JsonResponse
     {
@@ -360,7 +351,11 @@ class CashierOrderController extends Controller
     }
 
     /**
-     * Cancel order — simpan cancelled_by, cancel_reason, cancelled_at.
+     * Batalkan order.
+     *
+     * Tidak bisa membatalkan order yang sudah `completed`, `cancelled`,
+     * atau sudah dibayar (`paid`). Jika ada QRIS pending, dibatalkan dulu
+     * ke penyedia. Menyimpan `cancelled_by`, `cancel_reason`, `cancelled_at`.
      */
     public function cancel(CancelOrderRequest $request, int $id): JsonResponse
     {

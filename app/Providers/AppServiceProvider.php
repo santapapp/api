@@ -17,6 +17,9 @@ use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Dedoc\Scramble\Support\Generator\SecurityRequirement;
 use Dedoc\Scramble\Support\Generator\Operation;
+use Dedoc\Scramble\Support\Generator\Parameter;
+use Dedoc\Scramble\Support\Generator\Schema;
+use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\RouteInfo;
 
 class AppServiceProvider extends ServiceProvider
@@ -60,6 +63,42 @@ class AppServiceProvider extends ServiceProvider
 
             if (! $hasSanctum) {
                 $operation->security = [];
+            }
+
+            // Endpoint yang scoped per organisasi memerlukan header X-Org-ID.
+            $needsOrgHeader = collect($middleware)->contains(function ($m) {
+                return is_string($m) && (
+                    str_contains($m, 'resolve.organization')
+                    || str_contains($m, 'ResolveOrganization')
+                );
+            });
+
+            if ($needsOrgHeader) {
+                $operation->addParameters([
+                    Parameter::make('X-Org-ID', 'header')
+                        ->setSchema(Schema::fromType(new StringType))
+                        ->required(true)
+                        ->description('ID organisasi aktif. Wajib untuk endpoint owner/cashier/kitchen yang terikat ke satu organisasi.'),
+                ]);
+            }
+
+            // Tag eksplisit per endpoint berdasarkan URI route.
+            // Scramble mengabaikan @tags level-method dan menambah tag nama class
+            // sebagai tag kedua, jadi kita set ulang tag tunggal yang bersih di sini.
+            $uri = $routeInfo->route->uri();
+            $tag = match (true) {
+                Str::contains($uri, ['pay-cash', 'pay-qris', 'qris-status', 'qris-cancel']) => 'Mobile Payment',
+                Str::startsWith($uri, 'v1/auth')           => 'Mobile Auth',
+                Str::startsWith($uri, 'v1/organizations')  => 'Mobile Organization',
+                Str::startsWith($uri, 'v1/menus')          => 'Mobile Menu',
+                Str::startsWith($uri, 'v1/dining-tables')  => 'Mobile Table',
+                Str::startsWith($uri, 'v1/kitchen')        => 'Mobile Kitchen',
+                Str::startsWith($uri, 'v1/cashier')        => 'Mobile Cashier Order',
+                default                                    => null,
+            };
+
+            if ($tag !== null) {
+                $operation->setTags([$tag]);
             }
         });
 

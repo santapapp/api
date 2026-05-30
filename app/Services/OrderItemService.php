@@ -9,7 +9,6 @@ use App\Enums\MenuType;
 use App\Models\Menu;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\OrderItemVariant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -168,32 +167,32 @@ class OrderItemService
         // Support both 'note' and 'notes' temporarily
         $note = $itemData['notes'] ?? $itemData['note'] ?? null;
 
-        // ── 7. Simpan OrderItem dengan snapshot ───────────────────────────────
-        $orderItem = OrderItem::create([
+        // ── 7. Bangun snapshot selected_options untuk metadata ────────────────
+        $selectedOptions = [];
+        foreach ($validatedVariants as $v) {
+            $selectedOptions[] = [
+                'group_id'    => $v['group']->id,
+                'group_name'  => $v['group']->name,
+                'option_id'   => $v['variant']->id,
+                'option_name' => $v['variant']->name,
+                'price_delta' => $v['variantPrice'],
+            ];
+        }
+
+        // ── 8. Simpan OrderItem dengan snapshot ───────────────────────────────
+        OrderItem::create([
             'order_id'      => $order->id,
             'menu_id'       => $product->id,
-            'parent_item_id'=> null,
             'item_type'     => ItemType::Product->value,
-            'name'          => $product->name,        // snapshot nama produk
+            'name'          => $product->name,
             'base_price'    => $basePrice,
             'variant_total' => $variantTotal,
             'unit_price'    => $unitPrice,
-            'price'         => $unitPrice,            // legacy field
+            'price'         => $unitPrice,   // legacy field — sama dengan unit_price
             'quantity'      => $qty,
             'subtotal'      => $subtotal,
             'note'          => $note,
+            'metadata'      => empty($selectedOptions) ? null : ['selected_options' => $selectedOptions],
         ]);
-
-        // ── 8. Simpan snapshot OrderItemVariant ───────────────────────────────
-        foreach ($validatedVariants as $v) {
-            OrderItemVariant::create([
-                'order_item_id'      => $orderItem->id,
-                'variant_group_id'   => $v['group']->id,
-                'variant_id'         => $v['variant']->id,
-                'variant_group_name' => $v['group']->name,  // snapshot
-                'variant_name'       => $v['variant']->name, // snapshot
-                'price'              => $v['variantPrice'],
-            ]);
-        }
     }
 }

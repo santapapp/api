@@ -15,8 +15,17 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
+/**
+ * @tags Mobile Organization
+ */
 class OrganizationController extends Controller
 {
+    /**
+     * Daftar organisasi yang diikuti user yang sedang login.
+     *
+     * Setiap organisasi menyertakan `role` user pada organisasi tersebut
+     * (owner / cashier / kitchen) dari tabel `organization_members`.
+     */
     public function index(Request $request): JsonResponse
     {
         $orgs = $request->user()
@@ -28,6 +37,9 @@ class OrganizationController extends Controller
         ]);
     }
 
+    /**
+     * Buat organisasi baru. User pembuat otomatis menjadi `owner`.
+     */
     public function store(StoreOrganizationRequest $request): JsonResponse
     {
         $org = Organization::create([
@@ -49,7 +61,9 @@ class OrganizationController extends Controller
     }
 
     /**
-     * Detail organisasi aktif (via X-Org-ID header).
+     * Detail organisasi aktif.
+     *
+     * Organisasi ditentukan lewat header `X-Org-ID`.
      */
     public function show(): JsonResponse
     {
@@ -62,8 +76,9 @@ class OrganizationController extends Controller
     }
 
     /**
-     * Update settings organisasi aktif.
-     * Hanya owner yang boleh akses — role check dilakukan via middleware / gate.
+     * Update pengaturan organisasi aktif (header `X-Org-ID`).
+     *
+     * Hanya member dengan role `owner` yang diizinkan.
      */
     public function update(UpdateOrganizationRequest $request): JsonResponse
     {
