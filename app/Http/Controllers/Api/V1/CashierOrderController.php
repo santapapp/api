@@ -255,7 +255,8 @@ class CashierOrderController extends Controller
 
         return response()->json([
             'data' => [
-                'qr_url'            => $result['qr_url'] ?? null,
+                'qr_url'            => $result['data']['actions'][0]['url'] ?? $result['data']['qr_url'] ?? null,
+                'qr_string'         => $result['data']['qr_string'] ?? null,
                 'payment_reference' => $reference,
             ],
             'message' => 'QRIS payment dibuat.',

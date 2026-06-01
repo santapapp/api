@@ -24,6 +24,7 @@ class OrderDetailResource extends JsonResource
             'payment_status'               => $this->payment_status,
             'payment_method'               => $this->payment_method,
             'payment_reference'            => $this->payment_reference,
+            'payment_expires_at'           => $this->payment_expires_at?->toIso8601String(),
             // Customer
             'customer_name'                => $this->customer_name,
             'customer_phone'               => $this->customer_phone,

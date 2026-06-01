@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Order;
-use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Services\QrisService;
 use Illuminate\Support\Facades\Log;
@@ -42,12 +41,9 @@ class ExpirePendingOrders extends Command
 
         $count = 0;
         foreach ($expiredOrders as $order) {
-            $order->update([
-                'order_status'   => OrderStatus::Cancelled,
-                'payment_status' => PaymentStatus::Failed,
-                'cancel_reason'  => 'Payment Timeout',
-                'cancelled_at'   => now(),
-            ]);
+            // Konsisten dengan tracking/payment-status publik:
+            // payment_status=cancelled, order_status=cancelled, alasan timeout.
+            $order->markPaymentExpired();
 
             if ($order->payment_reference) {
                 try {

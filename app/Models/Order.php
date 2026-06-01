@@ -140,6 +140,42 @@ class Order extends Model
     }
 
     /**
+     * Apakah order ini adalah table order (pesanan langsung dari meja).
+     */
+    public function isTableOrder(): bool
+    {
+        return $this->order_type === OrderType::TableOrder;
+    }
+
+    /**
+     * Apakah pembayaran sudah melewati deadline (payment_expires_at).
+     * Hanya relevan saat payment_status masih pending.
+     */
+    public function isPaymentExpired(): bool
+    {
+        return $this->payment_status === PaymentStatus::Pending
+            && $this->payment_expires_at !== null
+            && $this->payment_expires_at->isPast();
+    }
+
+    /**
+     * Tandai order sebagai dibatalkan karena pembayaran timeout.
+     *
+     * Sumber kebenaran tunggal untuk expiry table order — dipakai oleh
+     * endpoint tracking/payment-status publik dan command terjadwal agar
+     * status konsisten (payment_status=cancelled, order_status=cancelled).
+     */
+    public function markPaymentExpired(): void
+    {
+        $this->update([
+            'order_status'   => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::Cancelled,
+            'cancel_reason'  => 'Payment Timeout',
+            'cancelled_at'   => now(),
+        ]);
+    }
+
+    /**
      * Hitung ulang semua nilai finansial order.
      *
      * Hanya menghitung dari root order_items (parent_item_id IS NULL)

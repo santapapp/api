@@ -83,10 +83,16 @@ Route::prefix('customer')->as('customer.')->group(function (): void {
     Route::get('/table/{qrToken}', [CustomerController::class, 'scanTable'])->name('table.scan');
     Route::get('/menu', [CustomerController::class, 'menu'])->name('menu');
     Route::get('/orders/{order}', [CustomerController::class, 'showPublicOrder'])->name('public.order.show');
+    Route::get('/orders/{order}/payment-status', [CustomerController::class, 'paymentStatus'])
+        ->middleware('throttle:qris-check')
+        ->name('public.order.payment-status');
     Route::post('/order', [CustomerController::class, 'createOrder'])
         ->middleware('throttle:customer-order')
         ->name('order.create');
 
+    // ── Open bill (butuh X-Public-Token) ──────────────────────────────────
+    // Endpoint di grup ini HANYA untuk open bill aktif (order_type=open_bill,
+    // bill_status=open). Table order TIDAK memakai grup ini.
     Route::middleware('ensure.customer.token')->group(function (): void {
         Route::get('/order', [CustomerController::class, 'showOrder'])->name('order.show');
         Route::post('/order/items', [CustomerController::class, 'addItems'])

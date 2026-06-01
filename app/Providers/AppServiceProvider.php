@@ -126,8 +126,28 @@ class AppServiceProvider extends ServiceProvider
                 return $m === 'ensure.customer.token' || (is_string($m) && str_contains($m, 'EnsureCustomerToken'));
             });
 
+            // Endpoint publik table order TIDAK memerlukan X-Public-Token.
+            // Hanya endpoint open bill (ensure.customer.token) yang di-secure.
             if (! $hasCustomerToken) {
                 $operation->security = [];
+            }
+
+            // Tag eksplisit agar dokumentasi memisahkan flow table order publik
+            // dari flow open bill yang berbasis token.
+            $uri = $routeInfo->route->uri();
+            $tag = match (true) {
+                $hasCustomerToken                               => 'Customer Open Bill',
+                Str::contains($uri, 'payment-status')           => 'Customer Payment',
+                Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
+                Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
+                Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
+                Str::contains($uri, 'v1/customer/table')        => 'Customer Table',
+                Str::contains($uri, 'v1/customer/organization') => 'Customer Organization',
+                default                                         => null,
+            };
+
+            if ($tag !== null) {
+                $operation->setTags([$tag]);
             }
         });
 

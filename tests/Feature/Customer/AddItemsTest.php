@@ -50,7 +50,7 @@ class AddItemsTest extends TestCase
             'public_token'                 => $this->publicToken,
             'organization_id'              => $this->org->id,
             'dining_table_id'              => $this->table->id,
-            'order_type'                   => OrderType::TableOrder,
+            'order_type'                   => OrderType::OpenBill,
             'bill_status'                  => BillStatus::Open,
             'order_status'                 => OrderStatus::Pending,
             'payment_status'               => PaymentStatus::Unpaid,

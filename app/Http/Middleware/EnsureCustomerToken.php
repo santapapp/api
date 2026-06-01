@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\BillStatus;
 use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Services\QrisService;
@@ -23,8 +25,13 @@ class EnsureCustomerToken
             return response()->json(['message' => 'Token tidak ditemukan.'], 401);
         }
 
+        // Middleware ini KHUSUS untuk open bill aktif. Table order bersifat
+        // stateless dan TIDAK pernah valid lewat jalur ini, meskipun punya
+        // public_token — table order memakai endpoint publik berbasis
+        // order_number/public_token (tracking & payment-status).
         $order = Order::where('public_token', $token)
-            ->where('bill_status', 'open')
+            ->where('order_type', OrderType::OpenBill)
+            ->where('bill_status', BillStatus::Open)
             ->first();
 
         if (! $order) {
@@ -33,7 +40,7 @@ class EnsureCustomerToken
             ], 403);
         }
 
-        // Cek payment timeout — expire order jika sudah lewat deadline
+        // Cek payment timeout — expire order jika sudah lewat deadline.
         if (
             $order->payment_status === PaymentStatus::Pending &&
             $order->payment_expires_at !== null &&
