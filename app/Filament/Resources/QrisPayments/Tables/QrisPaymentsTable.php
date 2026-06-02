@@ -37,13 +37,7 @@ class QrisPaymentsTable
                     ->money('IDR')
                     ->sortable(),
                 TextColumn::make('payment_status')
-                    ->badge()
-                    ->color(fn ($state): string => match ($state) {
-                        PaymentStatus::Paid => 'success',
-                        PaymentStatus::Pending => 'warning',
-                        PaymentStatus::Failed, PaymentStatus::Cancelled => 'danger',
-                        default => 'gray',
-                    }),
+                    ->badge(),
                 TextColumn::make('paid_at')
                     ->dateTime()
                     ->sortable(),
@@ -89,8 +83,8 @@ class QrisPaymentsTable
                     ->action(function ($record, QrisService $qris) {
                         try {
                             $result = $qris->check($record->payment_reference);
-                            
-                            if (($result['status'] ?? '') === 'paid') {
+
+                            if ($result['paid']) {
                                 $record->update([
                                     'payment_status' => PaymentStatus::Paid,
                                     'payment_amount' => $record->total_amount,

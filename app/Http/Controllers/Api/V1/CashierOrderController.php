@@ -23,6 +23,7 @@ use App\Services\OrganizationContext;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -278,9 +279,18 @@ class CashierOrderController extends Controller
             return response()->json(['message' => 'Tidak ada QRIS payment aktif.'], 422);
         }
 
+        $before = $order->payment_status->value;
         $result = $qris->check($order->payment_reference);
 
-        if (($result['status'] ?? '') === 'paid') {
+        Log::info('QRIS sync (cashier)', [
+            'order_no'              => $order->order_number,
+            'payment_reference'     => $order->payment_reference,
+            'payment_status_before' => $before,
+            'provider_status'       => $result['status'],
+            'provider_tx_status'    => $result['transaction_status'],
+        ]);
+
+        if ($result['paid'] && $order->payment_status !== PaymentStatus::Paid) {
             $order->update([
                 'payment_status' => PaymentStatus::Paid,
                 'payment_amount' => $order->total_amount,
@@ -289,6 +299,11 @@ class CashierOrderController extends Controller
                 'order_status'   => OrderStatus::Completed,
                 'paid_at'        => now(),
                 'closed_at'      => now(),
+            ]);
+
+            Log::info('QRIS sync (cashier): order ditandai PAID', [
+                'order_no'             => $order->order_number,
+                'payment_status_after' => $order->fresh()->payment_status->value,
             ]);
         }
 

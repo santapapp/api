@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'santap' => [
+        'web_url' => env('SANTAP_WEB_URL', 'https://santap.app'),
+    ],
+
 ];

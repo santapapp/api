@@ -159,20 +159,139 @@ class Order extends Model
     }
 
     /**
-     * Tandai order sebagai dibatalkan karena pembayaran timeout.
+     * Tandai order LUNAS — sumber kebenaran tunggal untuk transisi ke paid.
      *
-     * Sumber kebenaran tunggal untuk expiry table order — dipakai oleh
-     * endpoint tracking/payment-status publik dan command terjadwal agar
-     * status konsisten (payment_status=cancelled, order_status=cancelled).
+     * Idempotent: jika sudah paid, tidak melakukan apa pun (aman dipanggil
+     * berulang oleh polling/scheduler). Mendukung rekonsiliasi: order yang
+     * sebelumnya cancelled/expired tetap bisa diangkat menjadi paid bila
+     * provider ternyata settlement (gateway = source of truth).
+     *
+     * @param bool $closeBill tutup bill (open bill) saat lunas.
      */
-    public function markPaymentExpired(): void
+    public function markPaid(bool $closeBill = false): void
     {
+        if ($this->payment_status === PaymentStatus::Paid) {
+            return;
+        }
+
+        $attributes = [
+            'payment_status' => PaymentStatus::Paid,
+            'payment_amount' => $this->total_amount,
+            'change_amount'  => 0,
+            'order_status'   => OrderStatus::Confirmed,
+            'paid_at'        => $this->paid_at ?? now(),
+            // Bersihkan jejak pembatalan jika order direkonsiliasi dari cancelled.
+            'cancel_reason'  => null,
+            'cancelled_at'   => null,
+        ];
+
+        if ($closeBill) {
+            $attributes['bill_status'] = BillStatus::Closed;
+            $attributes['closed_at']   = $this->closed_at ?? now();
+        }
+
+        $this->update($attributes);
+    }
+
+    /**
+     * Tandai order sebagai dibatalkan karena pembayaran timeout/gagal.
+     *
+     * Sumber kebenaran tunggal untuk expiry order — dipakai oleh endpoint
+     * tracking/payment-status publik dan command terjadwal agar status
+     * konsisten (payment_status=cancelled, order_status=cancelled).
+     *
+     * PENTING: pemanggil WAJIB melakukan final sync ke provider lebih dulu;
+     * order tidak boleh dibatalkan hanya berdasarkan deadline lokal.
+     */
+    public function markPaymentExpired(?string $reason = null): void
+    {
+        // Jangan pernah membatalkan order yang sudah lunas.
+        if ($this->payment_status === PaymentStatus::Paid) {
+            return;
+        }
+
         $this->update([
             'order_status'   => OrderStatus::Cancelled,
             'payment_status' => PaymentStatus::Cancelled,
-            'cancel_reason'  => 'Payment Timeout',
+            'cancel_reason'  => $reason ?? 'Payment Timeout',
             'cancelled_at'   => now(),
         ]);
+    }
+
+    // ── Sinkronisasi status order ↔ item (item-driven) ─────────────
+
+    /**
+     * Turunkan order_status dari agregat item_status (item = source of truth).
+     *
+     * Pemetaan:
+     *   semua item served            → completed
+     *   semua item ready/served      → ready
+     *   ada item preparing/ready/... → preparing
+     *   sisanya (semua pending)      → confirmed
+     *
+     * Item cancelled diabaikan dari agregasi. Order yang masih `pending` (belum
+     * dikonfirmasi/dibayar) atau sudah `cancelled` TIDAK disentuh — kedua state
+     * itu dikendalikan jalur lain (pembayaran / pembatalan eksplisit).
+     */
+    public function syncStatusFromItems(): void
+    {
+        if (in_array($this->order_status, [OrderStatus::Pending, OrderStatus::Cancelled], true)) {
+            return;
+        }
+
+        $statuses = $this->allItems()
+            ->where('item_status', '!=', ItemStatus::Cancelled->value)
+            ->get()
+            ->pluck('item_status');
+
+        // Tanpa item aktif, biarkan status apa adanya (pembatalan dilakukan eksplisit).
+        if ($statuses->isEmpty()) {
+            return;
+        }
+
+        $allServed  = $statuses->every(fn (ItemStatus $s): bool => $s === ItemStatus::Served);
+        $allReady   = $statuses->every(fn (ItemStatus $s): bool => in_array($s, [ItemStatus::Ready, ItemStatus::Served], true));
+        $anyStarted = $statuses->contains(fn (ItemStatus $s): bool => $s->rank() >= ItemStatus::Preparing->rank());
+
+        $derived = match (true) {
+            $allServed  => OrderStatus::Completed,
+            $allReady   => OrderStatus::Ready,
+            $anyStarted => OrderStatus::Preparing,
+            default     => OrderStatus::Confirmed,
+        };
+
+        if ($this->order_status !== $derived) {
+            $this->update(['order_status' => $derived]);
+        }
+    }
+
+    /**
+     * Majukan semua item aktif satu tahap (pending→preparing→ready→served),
+     * lalu rollup order_status. Dipakai aksi "advance" di dashboard.
+     */
+    public function advanceItems(): void
+    {
+        $this->allItems()
+            ->where('item_status', '!=', ItemStatus::Cancelled->value)
+            ->get()
+            ->each(function (OrderItem $item): void {
+                $next = $item->item_status?->next();
+                if ($next !== null) {
+                    $item->update(['item_status' => $next]);
+                }
+            });
+
+        $this->syncStatusFromItems();
+    }
+
+    /**
+     * Batalkan semua item aktif (dipakai saat order dibatalkan).
+     */
+    public function cancelItems(): void
+    {
+        $this->allItems()
+            ->where('item_status', '!=', ItemStatus::Cancelled->value)
+            ->update(['item_status' => ItemStatus::Cancelled->value]);
     }
 
     /**

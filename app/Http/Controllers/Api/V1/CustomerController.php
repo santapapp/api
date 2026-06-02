@@ -130,7 +130,11 @@ class CustomerController extends Controller
      * - order_status    = pending
      * - payment_status  = pending
      * - payment_method  = qris
-     * - payment_expires_at = now() + 5 menit
+     * - payment_expires_at = now() + QRIS_EXPIRY_MINUTES (default 15 menit)
+     *
+     * Response menyertakan `payment_expires_at` dan `server_time` (ISO-8601) — pakai
+     * keduanya untuk menghitung countdown yang akurat di klien (offset waktu server).
+     * Pantau status lewat GET /v1/customer/orders/{order}/payment-status.
      *
      * Jika pembuatan QRIS gagal, seluruh transaksi di-rollback sehingga tidak
      * ada order/order_items yang menggantung.
@@ -169,7 +173,7 @@ class CustomerController extends Controller
                     'payment_amount'               => 0,
                     'change_amount'                => 0,
                     'opened_at'                    => now(),
-                    'payment_expires_at'           => now()->addMinutes(5),
+                    'payment_expires_at'           => now()->addMinutes((int) config('santap.qris.expiry_minutes', 15)),
                 ]);
 
                 // Tambah item (juga menghitung ulang total).
@@ -236,11 +240,13 @@ class CustomerController extends Controller
      * Cari order berdasarkan `order_number` ATAU `public_token`. Tidak butuh
      * session, token meja, cart, maupun header X-Public-Token.
      *
-     * Untuk table order yang masih pending, status expiry dievaluasi ulang agar
-     * konsisten (order yang lewat deadline otomatis menjadi cancelled). Response
-     * selalu memakai shape order detail yang sama — termasuk saat expired.
+     * Untuk table order, status pembayaran disinkronkan ke provider QRIS lebih
+     * dulu (gateway = source of truth) sebelum keputusan expiry, sehingga endpoint
+     * ini idempotent dan aman untuk polling progres pesanan (pending → confirmed →
+     * preparing → ready → completed). Response selalu memakai shape order detail
+     * yang sama — termasuk saat cancelled/expired.
      */
-    public function showPublicOrder(Request $request, string $order): JsonResponse
+    public function showPublicOrder(Request $request, string $order, QrisService $qris): JsonResponse
     {
         $model = $this->findPublicOrder($order);
 
@@ -248,9 +254,11 @@ class CustomerController extends Controller
             return response()->json(['message' => 'Order tidak ditemukan.'], 404);
         }
 
-        // Hanya table order yang punya mekanisme expiry otomatis di sini.
-        if ($model->isTableOrder() && $model->isPaymentExpired()) {
-            $model->markPaymentExpired();
+        // Table order: sinkronkan ke provider lebih dulu (gateway = source of truth)
+        // sebelum keputusan expiry — sama seperti endpoint payment-status.
+        if ($model->isTableOrder()) {
+            $this->refreshTableOrderPayment($model, $qris);
+            $model->refresh();
         }
 
         $model->load(['items', 'diningTable.organization']);
@@ -263,13 +271,17 @@ class CustomerController extends Controller
     /**
      * Status pembayaran publik untuk table order (poll-able tanpa session).
      *
-     * Frontend halaman /payments?order=<order_number> memakai endpoint ini untuk
-     * me-refresh status. Cari order by `order_number`/`public_token`, lalu untuk
-     * table order:
-     * - Jika sudah lewat deadline → tandai cancelled (payment timeout).
-     * - Jika masih pending → cek provider QRIS; jika paid → tandai paid + confirmed.
+     * Endpoint utama untuk polling dari halaman pembayaran. Cari order by
+     * `order_number`/`public_token`, lalu untuk table order jalankan sinkronisasi
+     * ke provider QRIS dengan urutan (gateway = source of truth):
+     * 1. SELALU cek provider lebih dulu — jika settlement → tandai paid + confirmed
+     *    (termasuk rekonsiliasi order yang terlanjur cancelled).
+     * 2. Provider menyatakan expired/cancelled/denied → tandai cancelled.
+     * 3. Provider masih pending DAN sudah lewat deadline → baru tandai timeout.
      *
-     * Tidak butuh X-Public-Token, token meja, atau customer session.
+     * Idempotent: aman dipanggil berulang. Response menyertakan `server_time`
+     * (ISO-8601) untuk sinkronisasi countdown klien. Tidak butuh X-Public-Token,
+     * token meja, atau customer session.
      */
     public function paymentStatus(Request $request, string $order, QrisService $qris): JsonResponse
     {
@@ -331,6 +343,12 @@ class CustomerController extends Controller
 
     /**
      * Buat pembayaran QRIS untuk open bill aktif (butuh X-Public-Token).
+     *
+     * Mengembalikan `qr_url`/`qr_string`, `payment_reference`, serta
+     * `payment_expires_at` dan `server_time` (ISO-8601) untuk countdown klien.
+     * Order menjadi `payment_status=pending` dengan deadline
+     * now() + QRIS_EXPIRY_MINUTES (default 15 menit). Pantau lewat
+     * GET /v1/customer/order/qris-status.
      */
     public function payQris(Request $request, QrisService $qris): JsonResponse
     {
@@ -348,16 +366,19 @@ class CustomerController extends Controller
         $result    = $qris->create($reference, (float) $order->total_amount);
 
         $order->update([
-            'payment_status'    => PaymentStatus::Pending,
-            'payment_method'    => 'qris',
-            'payment_reference' => $reference,
+            'payment_status'     => PaymentStatus::Pending,
+            'payment_method'     => 'qris',
+            'payment_reference'  => $reference,
+            'payment_expires_at' => now()->addMinutes((int) config('santap.qris.expiry_minutes', 15)),
         ]);
 
         return response()->json([
             'data' => [
-                'qr_url'            => $result['data']['actions'][0]['url'] ?? $result['data']['qr_url'] ?? null,
-                'qr_string'         => $result['data']['qr_string'] ?? null,
-                'payment_reference' => $reference,
+                'qr_url'             => $result['data']['actions'][0]['url'] ?? $result['data']['qr_url'] ?? null,
+                'qr_string'          => $result['data']['qr_string'] ?? null,
+                'payment_reference'  => $reference,
+                'payment_expires_at' => $order->fresh()->payment_expires_at?->toIso8601String(),
+                'server_time'        => now()->toIso8601String(),
             ],
             'message' => 'QRIS payment dibuat.',
         ]);
@@ -365,6 +386,10 @@ class CustomerController extends Controller
 
     /**
      * Polling status QRIS untuk open bill aktif (butuh X-Public-Token).
+     *
+     * Mengecek transaksi ke provider Sekeco/Midtrans (gateway = source of truth);
+     * jika settlement → order ditandai lunas dan bill ditutup. Mengembalikan
+     * `payment_status` terkini. Idempotent — aman dipanggil berulang.
      */
     public function qrisStatus(Request $request, QrisService $qris): JsonResponse
     {
@@ -374,17 +399,23 @@ class CustomerController extends Controller
             return response()->json(['message' => 'Tidak ada QRIS payment aktif.'], 422);
         }
 
+        $before = $order->payment_status->value;
         $result = $qris->check($order->payment_reference);
 
-        if (($result['status'] ?? '') === 'paid') {
-            $order->update([
-                'payment_status' => PaymentStatus::Paid,
-                'payment_amount' => $order->total_amount,
-                'change_amount'  => 0,
-                'bill_status'    => BillStatus::Closed,
-                'order_status'   => OrderStatus::Confirmed,
-                'paid_at'        => now(),
-                'closed_at'      => now(),
+        Log::info('QRIS sync (open bill)', [
+            'order_no'              => $order->order_number,
+            'payment_reference'     => $order->payment_reference,
+            'payment_status_before' => $before,
+            'provider_status'       => $result['status'],
+            'provider_tx_status'    => $result['transaction_status'],
+        ]);
+
+        if ($result['paid']) {
+            $order->markPaid(closeBill: true);
+
+            Log::info('QRIS sync (open bill): order ditandai PAID', [
+                'order_no'             => $order->order_number,
+                'payment_status_after' => $order->payment_status->value,
             ]);
         }
 
@@ -431,39 +462,86 @@ class CustomerController extends Controller
     /**
      * Refresh status pembayaran table order dari provider QRIS.
      *
-     * - Expired → markPaymentExpired (cancelled, payment timeout).
-     * - Pending + ada reference → cek provider; paid → tandai paid + confirmed.
+     * URUTAN PENTING (gateway = source of truth):
+     * 1. Sudah paid → idempotent, tidak ada aksi.
+     * 2. Ada reference → SELALU cek provider lebih dulu (bahkan jika sudah lewat
+     *    deadline) → jika settlement, tandai paid. Termasuk rekonsiliasi order
+     *    yang terlanjur cancelled bila provider ternyata lunas.
+     * 3. Provider eksplisit expired/cancelled/denied → cancel dengan alasan.
+     * 4. Provider masih pending DAN sudah lewat deadline lokal → baru expire.
      *
-     * Table order tetap bill_status=none sepanjang lifecycle (bukan flow bill).
-     * Kegagalan provider tidak men-throw — status DB terkini tetap dikembalikan.
+     * Timeout lokal TIDAK PERNAH berjalan sebelum sync. Kegagalan provider tidak
+     * men-throw — status DB terkini tetap dikembalikan.
      */
     private function refreshTableOrderPayment(Order $order, QrisService $qris): void
     {
+        // (1) Idempotent — sudah lunas.
+        if ($order->payment_status === PaymentStatus::Paid) {
+            return;
+        }
+
+        // Tanpa reference tak ada yang bisa disinkronkan; expire hanya bila pending & lewat deadline.
+        if (! $order->payment_reference) {
+            if ($order->isPaymentExpired()) {
+                Log::info('QRIS sync (table order): expire tanpa payment_reference', [
+                    'order_no'              => $order->order_number,
+                    'payment_status_before' => $order->payment_status->value,
+                ]);
+                $order->markPaymentExpired('Payment Timeout');
+            }
+
+            return;
+        }
+
+        // (2) Source of truth: cek provider lebih dulu.
+        $before = $order->payment_status->value;
+        $result = $qris->check($order->payment_reference);
+
+        Log::info('QRIS sync (table order)', [
+            'order_no'              => $order->order_number,
+            'payment_reference'     => $order->payment_reference,
+            'payment_status_before' => $before,
+            'provider_status'       => $result['status'],
+            'provider_tx_status'    => $result['transaction_status'],
+        ]);
+
+        if ($result['paid']) {
+            $wasCancelled = $order->payment_status === PaymentStatus::Cancelled;
+            $order->markPaid();
+
+            Log::info($wasCancelled
+                ? 'QRIS sync (table order): order DIREKONSILIASI cancelled→PAID'
+                : 'QRIS sync (table order): order ditandai PAID', [
+                'order_no'             => $order->order_number,
+                'payment_status_after' => $order->payment_status->value,
+            ]);
+
+            return;
+        }
+
+        // Order sudah cancelled & provider belum lunas → biarkan (tidak ada perubahan).
+        if ($order->payment_status === PaymentStatus::Cancelled) {
+            return;
+        }
+
+        // (3) Provider eksplisit menyatakan transaksi gagal.
+        if (in_array($result['status'], ['expired', 'cancelled', 'denied'], true)) {
+            $order->markPaymentExpired('Payment ' . $result['status']);
+
+            Log::info('QRIS sync (table order): order di-cancel oleh provider', [
+                'order_no' => $order->order_number,
+                'reason'   => $result['status'],
+            ]);
+
+            return;
+        }
+
+        // (4) Provider masih pending → expire hanya jika sudah lewat deadline lokal.
         if ($order->isPaymentExpired()) {
-            $order->markPaymentExpired();
+            $order->markPaymentExpired('Payment Timeout');
 
-            return;
-        }
-
-        if ($order->payment_status !== PaymentStatus::Pending || ! $order->payment_reference) {
-            return;
-        }
-
-        try {
-            $result = $qris->check($order->payment_reference);
-        } catch (\Throwable $e) {
-            Log::warning("Customer paymentStatus: gagal cek QRIS order {$order->id}: " . $e->getMessage());
-
-            return;
-        }
-
-        if (($result['status'] ?? '') === 'paid') {
-            $order->update([
-                'payment_status' => PaymentStatus::Paid,
-                'payment_amount' => $order->total_amount,
-                'change_amount'  => 0,
-                'order_status'   => OrderStatus::Confirmed,
-                'paid_at'        => now(),
+            Log::info('QRIS sync (table order): order expired (timeout lokal, provider masih pending)', [
+                'order_no' => $order->order_number,
             ]);
         }
     }

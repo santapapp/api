@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -m 20 -X POST https://qris.sekeco.id/create -H 'Content-Type: application/json' -d '{\"order_id\":\"__TRACKED_VAR__\",\"gross_amount\":1000}')",
+      "Bash(curl -s -m 20 https://qris.sekeco.id/check?id=__TRACKED_VAR__)",
+      "Bash(curl -s -m 20 -X DELETE https://qris.sekeco.id/cancel?id=__TRACKED_VAR__)",
+      "Bash(cd /c/Users/USER/.claude/projects/c--laragon-www-api-santap/memory)",
+      "Bash(ls MEMORY.md)"
+    ],
+    "additionalDirectories": [
+      "C:\\KAIRAV\\project\\santap_web\\app\\composables"
+    ]
+  }
+}

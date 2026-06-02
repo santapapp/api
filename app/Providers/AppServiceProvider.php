@@ -109,7 +109,15 @@ class AppServiceProvider extends ServiceProvider
                 'title' => 'Santap Customer Web API',
             ],
             'info' => [
-                'description' => 'API publik tanpa login untuk pelanggan di meja.',
+                'description' => <<<'MD'
+                    API publik tanpa login untuk pelanggan di meja (Nuxt web app).
+
+                    **Alur pembayaran & polling (QRIS):**
+                    - Status pembayaran disinkronkan dari gateway Sekeco/Midtrans — *gateway adalah source of truth*. Frontend cukup membaca status dari API ini, bukan memutuskan sendiri.
+                    - Order pending punya `payment_expires_at` (now + 15 menit). Gunakan bersama `server_time` untuk countdown yang akurat (hitung offset waktu server↔klien).
+                    - Polling status table order: `GET /v1/customer/orders/{order}/payment-status`. Endpoint ini cek provider lebih dulu, baru memutuskan paid/expired — idempotent, dan bisa merekonsiliasi order yang terlanjur cancelled jika ternyata sudah dibayar.
+                    - Timeout lokal TIDAK pernah membatalkan order sebelum sinkronisasi final ke gateway.
+                    MD,
                 'version'     => '1.0.0',
             ],
         ])->routes(function (Route $route) {

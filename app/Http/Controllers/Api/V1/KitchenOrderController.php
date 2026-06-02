@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\ItemStatus;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kitchen\UpdateItemStatusRequest;
@@ -49,8 +48,11 @@ class KitchenOrderController extends Controller
      * Update status satu item order dari dapur.
      *
      * Nilai `item_status` yang valid: `preparing`, `ready`, `served`, `cancelled`.
-     * Jika semua item sudah `served`, `order_status` otomatis menjadi `ready`;
-     * jika sebelumnya `confirmed`, otomatis menjadi `preparing`.
+     *
+     * item_status adalah SUMBER KEBENARAN — setelah diubah, `order_status`
+     * diturunkan ulang dari agregat seluruh item (item-driven):
+     *   semua item served → completed · semua ready → ready ·
+     *   ada yang diproses → preparing · sisanya → confirmed.
      */
     public function updateItemStatus(UpdateItemStatusRequest $request, int $id): JsonResponse
     {
@@ -62,18 +64,8 @@ class KitchenOrderController extends Controller
 
         $item->update(['item_status' => $request->item_status]);
 
-        // Cek apakah semua items sudah served → update order_status ke ready
-        $order     = $item->order;
-        $allServed = $order->allItems()
-            ->where('item_status', '!=', ItemStatus::Served->value)
-            ->where('item_status', '!=', ItemStatus::Cancelled->value)
-            ->doesntExist();
-
-        if ($allServed) {
-            $order->update(['order_status' => OrderStatus::Ready]);
-        } elseif ($order->order_status === OrderStatus::Confirmed) {
-            $order->update(['order_status' => OrderStatus::Preparing]);
-        }
+        // Rollup: turunkan order_status dari agregat item.
+        $item->order->syncStatusFromItems();
 
         return response()->json([
             'data'    => $item->fresh(),

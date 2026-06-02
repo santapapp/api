@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\BillStatus;
-use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -40,23 +39,45 @@ class EnsureCustomerToken
             ], 403);
         }
 
-        // Cek payment timeout — expire order jika sudah lewat deadline.
+        // Cek payment timeout — TAPI gateway = source of truth: final sync ke
+        // provider lebih dulu sebelum memutuskan expired.
         if (
             $order->payment_status === PaymentStatus::Pending &&
             $order->payment_expires_at !== null &&
             $order->payment_expires_at->isPast()
         ) {
-            $order->update([
-                'order_status'   => OrderStatus::Cancelled,
-                'payment_status' => PaymentStatus::Failed,
-                'cancel_reason'  => 'Payment Timeout',
-                'cancelled_at'   => now(),
+            // Final sync: jika provider ternyata lunas, angkat menjadi paid & lanjut.
+            if ($order->payment_reference) {
+                $result = app(QrisService::class)->check($order->payment_reference);
+
+                Log::info('EnsureCustomerToken: QRIS sync', [
+                    'order_no'              => $order->order_number,
+                    'payment_reference'     => $order->payment_reference,
+                    'payment_status_before' => $order->payment_status->value,
+                    'provider_status'       => $result['status'],
+                    'provider_tx_status'    => $result['transaction_status'],
+                ]);
+
+                if ($result['paid']) {
+                    $order->markPaid(closeBill: true);
+                    $request->attributes->set('customer_order', $order->fresh());
+
+                    return $next($request);
+                }
+            }
+
+            // Benar-benar belum lunas saat deadline → expire (konsisten: cancelled).
+            $order->markPaymentExpired('Payment Timeout');
+
+            Log::info('EnsureCustomerToken: order di-expire', [
+                'order_no' => $order->order_number,
+                'reason'   => 'Payment Timeout (provider belum settlement saat deadline)',
             ]);
 
             if ($order->payment_reference) {
                 try {
                     app(QrisService::class)->cancel($order->payment_reference);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Log::warning("EnsureCustomerToken: gagal cancel QRIS order {$order->id}: " . $e->getMessage());
                 }
             }
