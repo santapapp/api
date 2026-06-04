@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
     Route::get('/auth/me', [AuthController::class, 'me'])->name('auth.me');
     Route::put('/auth/profile', [AuthController::class, 'updateProfile'])->name('auth.profile.update');
+    Route::post('/auth/profile/avatar', [AuthController::class, 'uploadAvatar'])->name('auth.profile.avatar');
 
     // ============================================================
     // Organizations
@@ -40,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         // --- Organization detail & settings ---
         Route::get('/organizations/current', [OrganizationController::class, 'show'])->name('organizations.show');
         Route::put('/organizations/current', [OrganizationController::class, 'update'])->name('organizations.update');
+        Route::post('/organizations/current/logo', [OrganizationController::class, 'uploadLogo'])->name('organizations.logo');
+        Route::post('/organizations/current/banner', [OrganizationController::class, 'uploadBanner'])->name('organizations.banner');
 
         // --- Dining Tables ---
         Route::get('/dining-tables', [DiningTableController::class, 'index'])->name('dining-tables.index');
@@ -54,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::put('/menus/{id}', [MenuController::class, 'update'])->name('menus.update');
         Route::delete('/menus/{id}', [MenuController::class, 'destroy'])->name('menus.destroy');
         Route::patch('/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('menus.toggle');
+        Route::post('/menus/{id}/image', [MenuController::class, 'uploadImage'])->name('menus.image');
 
         // --- Cashier Orders ---
         Route::get('/cashier/orders', [CashierOrderController::class, 'index'])->name('cashier.orders.index');

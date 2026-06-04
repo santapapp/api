@@ -11,6 +11,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -24,6 +25,13 @@ class OrganizationsTable
     {
         return $table
             ->columns([
+                // ── Logo ──────────────────────────────────────────────────
+                ImageColumn::make('logo')
+                    ->label('Logo')
+                    ->disk('public')
+                    ->square()
+                    ->defaultImageUrl(asset('images/logo-placeholder.svg')),
+
                 // ── Nama & Slug ───────────────────────────────────────────
                 TextColumn::make('name')
                     ->label('Nama Mitra')

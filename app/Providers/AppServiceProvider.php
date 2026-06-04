@@ -18,7 +18,9 @@ use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Dedoc\Scramble\Support\Generator\SecurityRequirement;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\Parameter;
+use Dedoc\Scramble\Support\Generator\Response as ScrambleResponse;
 use Dedoc\Scramble\Support\Generator\Schema;
+use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\RouteInfo;
 
@@ -43,7 +45,17 @@ class AppServiceProvider extends ServiceProvider
                 'title' => 'Santap Mobile POS & Staff API',
             ],
             'info' => [
-                'description' => 'API untuk aplikasi staff kasir, dapur, dan owner.',
+                'description' => <<<'MD'
+                    API untuk aplikasi staff kasir, dapur, dan owner.
+
+                    **Autentikasi:** kirim `Authorization: Bearer <token>` (token dari `POST /v1/auth/login`).
+
+                    **Konteks organisasi:** endpoint owner/cashier/kitchen wajib menyertakan header `X-Org-ID` (id organisasi aktif milik user).
+
+                    **Gambar/media:** field `image` (menu), `logo`/`banner` (organisasi), dan `avatar` (profil) berisi **URL string** ke gambar pada response. Untuk meng-unggah file, tersedia endpoint upload khusus (`multipart/form-data`): `POST /v1/auth/profile/avatar`, `POST /v1/menus/{id}/image`, `POST /v1/organizations/current/logo`, dan `POST /v1/organizations/current/banner` — kirim field file (jpeg/png/webp, maks 2 MB); gambar lama otomatis diganti dan response mengembalikan resource dengan URL gambar terbaru.
+
+                    **Format error:** semua error mengembalikan JSON `{ "message": string }`; error validasi (422) menambahkan `{ "errors": { field: [pesan] } }`.
+                    MD,
                 'version'     => '1.0.0',
             ],
         ])->routes(function (Route $route) {
@@ -80,6 +92,24 @@ class AppServiceProvider extends ServiceProvider
                         ->required(true)
                         ->description('ID organisasi aktif. Wajib untuk endpoint owner/cashier/kitchen yang terikat ke satu organisasi.'),
                 ]);
+            }
+
+            // ── Error responses standar ──────────────────────────────────
+            // Didokumentasikan sesuai middleware & handler global (bootstrap/app.php),
+            // bukan asumsi. Hanya ditambahkan bila Scramble belum mendeteksinya.
+            $hasPathParams = count($routeInfo->route->parameterNames()) > 0;
+
+            if ($hasSanctum) {
+                $this->addApiError($operation, 401, 'Belum terautentikasi — Bearer token tidak ada / tidak valid / sudah dicabut.');
+            }
+
+            if ($needsOrgHeader) {
+                // ResolveOrganization + EnsureOrganizationMember.
+                $this->addApiError($operation, 400, 'Header X-Org-ID tidak disertakan.');
+                $this->addApiError($operation, 403, 'Organisasi tidak aktif, atau Anda bukan member organisasi ini (sebagian aksi hanya untuk owner).');
+                $this->addApiError($operation, 404, 'Organisasi atau resource (mis. menu/meja/order pada {id}) tidak ditemukan.');
+            } elseif ($hasPathParams) {
+                $this->addApiError($operation, 404, 'Resource tidak ditemukan.');
             }
 
             // Tag eksplisit per endpoint berdasarkan URI route.
@@ -140,6 +170,17 @@ class AppServiceProvider extends ServiceProvider
                 $operation->security = [];
             }
 
+            // ── Error responses standar ──────────────────────────────────
+            // Sesuai EnsureCustomerToken & handler global (bootstrap/app.php).
+            $hasPathParams = count($routeInfo->route->parameterNames()) > 0;
+
+            if ($hasCustomerToken) {
+                $this->addApiError($operation, 401, 'Header X-Public-Token tidak disertakan.');
+                $this->addApiError($operation, 403, 'Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).');
+            } elseif ($hasPathParams) {
+                $this->addApiError($operation, 404, 'Order atau resource tidak ditemukan.');
+            }
+
             // Tag eksplisit agar dokumentasi memisahkan flow table order publik
             // dari flow open bill yang berbasis token.
             $uri = $routeInfo->route->uri();
@@ -160,12 +201,135 @@ class AppServiceProvider extends ServiceProvider
         });
 
 
+        // ── Scramble: Admin / Full API ────────────────────────────────
+        // Dokumentasi paling lengkap untuk admin/dashboard: mencakup SELURUH
+        // endpoint v1 (staff/owner + customer + upload media). Keamanan & header
+        // diset per-operasi sesuai middleware masing-masing route.
+        Scramble::registerApi('admin', [
+            'ui' => [
+                'title' => 'Santap Admin / Full API',
+            ],
+            'info' => [
+                'description' => <<<'MD'
+                    Dokumentasi **lengkap** seluruh endpoint Santap (staff/owner, kasir, dapur, dan pelanggan) dalam satu tempat — untuk admin/superadmin dashboard.
+
+                    **Autentikasi staff/owner:** `Authorization: Bearer <token>` (dari `POST /v1/auth/login`); endpoint scoped organisasi wajib menyertakan header `X-Org-ID`.
+
+                    **Autentikasi pelanggan (open bill):** header `X-Public-Token` (dari scan QR meja). Endpoint table order publik tidak butuh token.
+
+                    **Upload media (`multipart/form-data`):** `POST /v1/auth/profile/avatar`, `POST /v1/menus/{id}/image`, `POST /v1/organizations/current/logo`, `POST /v1/organizations/current/banner` — field file jpeg/png/webp maks 2 MB; gambar lama otomatis diganti, response mengembalikan URL gambar terbaru.
+
+                    **Format error:** JSON `{ "message": string }`; validasi (422) menambah `{ "errors": { field: [pesan] } }`.
+                    MD,
+                'version'     => '1.0.0',
+            ],
+        ])->routes(function (Route $route) {
+            return Str::startsWith($route->uri(), 'v1');
+        })->withDocumentTransformers(function (OpenApi $openApi) {
+            $openApi->secure(
+                SecurityScheme::http('bearer')
+                    ->as('Sanctum')
+                    ->setDescription('Token Bearer staff/owner. Dapatkan dari endpoint login.')
+            );
+            $openApi->secure(
+                SecurityScheme::apiKey('header', 'X-Public-Token')
+                    ->as('X-Public-Token')
+                    ->setDescription('public_token pelanggan dari scan QR meja (untuk endpoint open bill).')
+            );
+        })->withOperationTransformers(function (Operation $operation, RouteInfo $routeInfo) {
+            $middleware = $routeInfo->route->gatherMiddleware();
+            $uri        = $routeInfo->route->uri();
+
+            $hasSanctum = collect($middleware)->contains(function ($m) {
+                return $m === 'auth:sanctum' || (is_string($m) && str_starts_with($m, 'auth:'));
+            });
+            $hasCustomerToken = collect($middleware)->contains(function ($m) {
+                return $m === 'ensure.customer.token' || (is_string($m) && str_contains($m, 'EnsureCustomerToken'));
+            });
+            $needsOrgHeader = collect($middleware)->contains(function ($m) {
+                return is_string($m) && (
+                    str_contains($m, 'resolve.organization')
+                    || str_contains($m, 'ResolveOrganization')
+                );
+            });
+
+            // ── Keamanan per-operasi (skema digabung di document transformer) ──
+            if ($hasSanctum) {
+                $operation->security = [new SecurityRequirement(['Sanctum' => []])];
+            } elseif ($hasCustomerToken) {
+                $operation->security = [new SecurityRequirement(['X-Public-Token' => []])];
+            } else {
+                $operation->security = [];
+            }
+
+            // Header X-Org-ID untuk endpoint yang scoped per organisasi.
+            if ($needsOrgHeader) {
+                $operation->addParameters([
+                    Parameter::make('X-Org-ID', 'header')
+                        ->setSchema(Schema::fromType(new StringType))
+                        ->required(true)
+                        ->description('ID organisasi aktif. Wajib untuk endpoint owner/cashier/kitchen yang terikat ke satu organisasi.'),
+                ]);
+            }
+
+            // ── Error responses standar ───────────────────────────────────
+            $hasPathParams = count($routeInfo->route->parameterNames()) > 0;
+
+            if ($hasSanctum) {
+                $this->addApiError($operation, 401, 'Belum terautentikasi — Bearer token tidak ada / tidak valid / sudah dicabut.');
+            }
+
+            if ($needsOrgHeader) {
+                $this->addApiError($operation, 400, 'Header X-Org-ID tidak disertakan.');
+                $this->addApiError($operation, 403, 'Organisasi tidak aktif, atau Anda bukan member organisasi ini (sebagian aksi hanya untuk owner).');
+                $this->addApiError($operation, 404, 'Organisasi atau resource (mis. menu/meja/order pada {id}) tidak ditemukan.');
+            } elseif ($hasCustomerToken) {
+                $this->addApiError($operation, 401, 'Header X-Public-Token tidak disertakan.');
+                $this->addApiError($operation, 403, 'Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).');
+            } elseif ($hasPathParams) {
+                $this->addApiError($operation, 404, 'Resource tidak ditemukan.');
+            }
+
+            // ── Tag: pisahkan flow customer dari staff agar dokumentasi rapi ──
+            if (Str::startsWith($uri, 'v1/customer')) {
+                $tag = match (true) {
+                    $hasCustomerToken                               => 'Customer Open Bill',
+                    Str::contains($uri, 'payment-status')           => 'Customer Payment',
+                    Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
+                    Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
+                    Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
+                    Str::contains($uri, 'v1/customer/table')        => 'Customer Table',
+                    Str::contains($uri, 'v1/customer/organization') => 'Customer Organization',
+                    default                                         => null,
+                };
+            } else {
+                $tag = match (true) {
+                    Str::contains($uri, ['pay-cash', 'pay-qris', 'qris-status', 'qris-cancel']) => 'Staff Payment',
+                    Str::startsWith($uri, 'v1/auth')           => 'Staff Auth',
+                    Str::startsWith($uri, 'v1/organizations')  => 'Staff Organization',
+                    Str::startsWith($uri, 'v1/menus')          => 'Staff Menu',
+                    Str::startsWith($uri, 'v1/dining-tables')  => 'Staff Table',
+                    Str::startsWith($uri, 'v1/kitchen')        => 'Staff Kitchen',
+                    Str::startsWith($uri, 'v1/cashier')        => 'Staff Cashier Order',
+                    default                                    => null,
+                };
+            }
+
+            if ($tag !== null) {
+                $operation->setTags([$tag]);
+            }
+        });
+
+
         // ── Scramble UI & JSON Spec Routes ────────────────────────────
         Scramble::registerUiRoute('docs/api/mobile', api: 'mobile');
         Scramble::registerJsonSpecificationRoute('docs/api/mobile/api.json', api: 'mobile');
 
         Scramble::registerUiRoute('docs/api/web-customer', api: 'web-customer');
         Scramble::registerJsonSpecificationRoute('docs/api/web-customer/api.json', api: 'web-customer');
+
+        Scramble::registerUiRoute('docs/api/admin', api: 'admin');
+        Scramble::registerJsonSpecificationRoute('docs/api/admin/api.json', api: 'admin');
 
         // ── Rate Limiters ─────────────────────────────────────────────
         RateLimiter::for('login', function (Request $request) {
@@ -183,5 +347,33 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(20)->by($token);
         });
+    }
+
+    /**
+     * Tambahkan satu response error standar ke operation bila kode tersebut
+     * belum didokumentasikan. Semua error API memakai shape `{ "message": string }`
+     * (lihat handler global di bootstrap/app.php) sehingga skemanya konsisten.
+     */
+    private function addApiError(Operation $operation, int $code, string $description): void
+    {
+        $alreadyDocumented = collect($operation->responses)->contains(
+            fn ($response) => $response instanceof ScrambleResponse && $response->code === $code
+        );
+
+        if ($alreadyDocumented) {
+            return;
+        }
+
+        $schema = Schema::fromType(
+            (new ObjectType)
+                ->addProperty('message', (new StringType)->setDescription('Pesan error yang bisa ditampilkan ke pengguna.'))
+                ->setRequired(['message'])
+        );
+
+        $operation->addResponse(
+            ScrambleResponse::make($code)
+                ->setDescription($description)
+                ->setContent('application/json', $schema)
+        );
     }
 }

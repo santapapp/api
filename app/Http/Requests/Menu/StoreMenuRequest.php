@@ -17,19 +17,25 @@ class StoreMenuRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Tipe node menu. Hierarki: product → (variant_group|addon_group) → (variant|addon).
             'type'       => ['required', 'string', Rule::in(['product', 'variant_group', 'variant', 'addon_group', 'addon'])],
+            // ID node induk. Wajib untuk non-product, harus null untuk product.
             'parent_id'  => ['nullable', 'integer', 'exists:menus,id'],
             'name'       => ['required', 'string', 'max:255'],
             'price'      => ['sometimes', 'numeric', 'min:0'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
-            // Kolom baru (product only)
+            // Ketersediaan menu. Default true bila tidak dikirim.
+            'is_available' => ['sometimes', 'boolean'],
+            // URL gambar produk yang SUDAH di-host (mis. https://cdn.example.com/menu.jpg).
+            // API ini TIDAK menerima upload file — kirim URL string, bukan multipart. (product only)
             'image'       => ['sometimes', 'nullable', 'string', 'max:500'],
             'sku'         => ['sometimes', 'nullable', 'string', 'max:50'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            // Selection rules (variant_group / addon_group only)
+            // Aturan pemilihan (variant_group / addon_group only).
             'is_required' => ['sometimes', 'boolean'],
             'min_select'  => ['sometimes', 'integer', 'min:0', 'max:255'],
             'max_select'  => ['sometimes', 'integer', 'min:1', 'max:255'],
+            // Objek JSON bebas untuk data tambahan, mis. {"category": "makanan"}.
             'metadata'    => ['sometimes', 'nullable', 'array'],
         ];
     }

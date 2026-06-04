@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,9 +17,9 @@ class OrganizationResource extends JsonResource
             'name'                   => $this->name,
             'slug'                   => $this->slug,
             'is_active'              => $this->is_active,
-            // Visual
-            'logo'                   => $this->logo,
-            'banner'                 => $this->banner,
+            // Visual — URL siap pakai (path tersimpan dikonversi ke URL penuh).
+            'logo'                   => MediaService::toUrl($this->logo),
+            'banner'                 => MediaService::toUrl($this->banner),
             // Kontak
             'phone'                  => $this->phone,
             'email'                  => $this->email,

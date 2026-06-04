@@ -8,8 +8,10 @@ use App\Enums\MenuType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Menu\StoreMenuRequest;
 use App\Http\Requests\Menu\UpdateMenuRequest;
+use App\Http\Requests\Menu\UploadMenuImageRequest;
 use App\Http\Resources\MenuResource;
 use App\Models\Menu;
+use App\Services\MediaService;
 use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 
@@ -123,6 +125,26 @@ class MenuController extends Controller
         return response()->json([
             'data'    => new MenuResource($menu->fresh()),
             'message' => $menu->is_available ? 'Menu diaktifkan.' : 'Menu dinonaktifkan.',
+        ]);
+    }
+
+    /**
+     * Upload gambar produk (multipart/form-data).
+     *
+     * Field file: `image` (jpeg/jpg/png/webp, maks 2 MB). Gambar lama otomatis
+     * dihapus. Mengembalikan menu terbaru dengan `image` berisi URL siap pakai.
+     */
+    public function uploadImage(UploadMenuImageRequest $request, int $id, MediaService $media): JsonResponse
+    {
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
+        $menu  = Menu::where('organization_id', $orgId)->findOrFail($id);
+
+        $path = $media->replace($request->file('image'), 'menu/images', $menu->image);
+        $menu->update(['image' => $path]);
+
+        return response()->json([
+            'data'    => new MenuResource($menu->fresh()),
+            'message' => 'Gambar menu berhasil diunggah.',
         ]);
     }
 

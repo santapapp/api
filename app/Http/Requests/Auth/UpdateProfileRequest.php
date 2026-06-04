@@ -18,6 +18,8 @@ class UpdateProfileRequest extends FormRequest
         return [
             'name'   => ['sometimes', 'string', 'max:255'],
             'phone'  => ['sometimes', 'nullable', 'string', 'max:20'],
+            // URL avatar yang SUDAH di-host. API TIDAK menerima upload file —
+            // kirim URL string, bukan multipart. Kirim null untuk menghapus.
             'avatar' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }

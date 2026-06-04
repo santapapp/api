@@ -87,11 +87,14 @@ class OrganizationForm
                     ]),
 
                 // ── Section 3: Media ───────────────────────────────────────
+                // CATATAN: Section ini TIDAK boleh ->collapsed() saat awal.
+                // FilePond (FileUpload) gagal menginisialisasi area klik bila
+                // di-render dalam container tersembunyi → tombol upload tak bisa
+                // diklik (Filament v5.6 masih terdampak utk Section).
                 Section::make('Media')
                     ->icon('heroicon-o-photo')
                     ->columns(2)
                     ->collapsible()
-                    ->collapsed()
                     ->schema([
                         FileUpload::make('logo')
                             ->label('Logo Restoran')

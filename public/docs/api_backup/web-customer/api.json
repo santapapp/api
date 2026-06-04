@@ -1,0 +1,1685 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Santap Customer Web API",
+        "version": "1.0.0",
+        "description": "API publik tanpa login untuk pelanggan di meja (Nuxt web app).\n\n**Alur pembayaran & polling (QRIS):**\n- Status pembayaran disinkronkan dari gateway Sekeco/Midtrans \u2014 *gateway adalah source of truth*. Frontend cukup membaca status dari API ini, bukan memutuskan sendiri.\n- Order pending punya `payment_expires_at` (now + 15 menit). Gunakan bersama `server_time` untuk countdown yang akurat (hitung offset waktu server\u2194klien).\n- Polling status table order: `GET /v1/customer/orders/{order}/payment-status`. Endpoint ini cek provider lebih dulu, baru memutuskan paid/expired \u2014 idempotent, dan bisa merekonsiliasi order yang terlanjur cancelled jika ternyata sudah dibayar.\n- Timeout lokal TIDAK pernah membatalkan order sebelum sinkronisasi final ke gateway."
+    },
+    "servers": [
+        {
+            "url": "https://api.santap.app",
+            "description": "production"
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "local"
+        }
+    ],
+    "security": [
+        {
+            "X-Public-Token": []
+        }
+    ],
+    "paths": {
+        "/v1/customer/menu": {
+            "get": {
+                "operationId": "v1.customer.menu",
+                "summary": "Menu publik (tersedia saja, grouped by tree)",
+                "tags": [
+                    "Customer Menu"
+                ],
+                "parameters": [
+                    {
+                        "name": "org",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MenuResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/customer/order": {
+            "get": {
+                "operationId": "v1.customer.order.show",
+                "description": "Hanya dipakai untuk flow open bill aktif. Order disuplai oleh middleware\nensure.customer.token (order_type=open_bill, bill_status=open).",
+                "summary": "Lihat order saat ini (open bill \u2014 butuh X-Public-Token)",
+                "tags": [
+                    "Customer Open Bill"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrderDetailResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Header X-Public-Token tidak disertakan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1.customer.order.create",
+                "description": "Order baru HANYA dibuat di sini (saat checkout). Sebelum ini tidak ada\norder di database. Table order bersifat stateless: tidak ada session meja.\n\nState awal table order:\n- order_type      = table_order\n- bill_status     = none  (table order TIDAK memakai lifecycle bill open/closed)\n- order_status    = pending\n- payment_status  = pending\n- payment_method  = qris\n- payment_expires_at = now() + QRIS_EXPIRY_MINUTES (default 15 menit)\n\nResponse menyertakan `payment_expires_at` dan `server_time` (ISO-8601) \u2014 pakai\nkeduanya untuk menghitung countdown yang akurat di klien (offset waktu server).\nPantau status lewat GET /v1/customer/orders/{order}/payment-status.\n\nJika pembuatan QRIS gagal, seluruh transaksi di-rollback sehingga tidak\nada order/order_items yang menggantung.\n\nEndpoint publik \u2014 tidak butuh X-Public-Token.",
+                "summary": "Checkout table order \u2014 buat order + QRIS dalam satu transaksi atomik",
+                "tags": [
+                    "Customer Table Order"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Pesanan berhasil dibuat."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "order_id": {
+                                                    "type": "string"
+                                                },
+                                                "order_number": {
+                                                    "type": "string"
+                                                },
+                                                "public_token": {
+                                                    "type": "string"
+                                                },
+                                                "order_type": {
+                                                    "type": "string"
+                                                },
+                                                "bill_status": {
+                                                    "type": "string"
+                                                },
+                                                "order_status": {
+                                                    "type": "string"
+                                                },
+                                                "payment_status": {
+                                                    "type": "string"
+                                                },
+                                                "payment_method": {
+                                                    "type": "string"
+                                                },
+                                                "payment_reference": {
+                                                    "type": "string"
+                                                },
+                                                "payment_expires_at": {
+                                                    "type": "string"
+                                                },
+                                                "server_time": {
+                                                    "type": "string"
+                                                },
+                                                "qris_data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "qr_url": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "qr_string": {
+                                                            "type": "string"
+                                                        },
+                                                        "payment_reference": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "qr_url",
+                                                        "qr_string",
+                                                        "payment_reference"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "order_id",
+                                                "order_number",
+                                                "public_token",
+                                                "order_type",
+                                                "bill_status",
+                                                "order_status",
+                                                "payment_status",
+                                                "payment_method",
+                                                "payment_reference",
+                                                "payment_expires_at",
+                                                "server_time",
+                                                "qris_data"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Gagal membuat pesanan. Silakan coba lagi."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/customer/order/items": {
+            "post": {
+                "operationId": "v1.customer.order.add-items",
+                "description": "Payload memakai `selected_variants`. Harga dikalkulasi backend dan\ndibungkus DB transaction. Hanya untuk open bill (order_type=open_bill).",
+                "summary": "Tambah item ke open bill aktif (butuh X-Public-Token)",
+                "tags": [
+                    "Customer Open Bill"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddItemsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrderDetailResource"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Item berhasil ditambahkan."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "description": "Header X-Public-Token tidak disertakan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/customer/order/pay-qris": {
+            "post": {
+                "operationId": "v1.customer.order.pay-qris",
+                "description": "Mengembalikan `qr_url`/`qr_string`, `payment_reference`, serta\n`payment_expires_at` dan `server_time` (ISO-8601) untuk countdown klien.\nOrder menjadi `payment_status=pending` dengan deadline\nnow() + QRIS_EXPIRY_MINUTES (default 15 menit). Pantau lewat\nGET /v1/customer/order/qris-status.",
+                "summary": "Buat pembayaran QRIS untuk open bill aktif (butuh X-Public-Token)",
+                "tags": [
+                    "Customer Open Bill"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "qr_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "qr_string": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "payment_reference": {
+                                                    "type": "string"
+                                                },
+                                                "payment_expires_at": {
+                                                    "type": "string"
+                                                },
+                                                "server_time": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "qr_url",
+                                                "qr_string",
+                                                "payment_reference",
+                                                "payment_expires_at",
+                                                "server_time"
+                                            ]
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "QRIS payment dibuat."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "const": "Order belum memiliki item."
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "const": "Order sudah dibayar."
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Header X-Public-Token tidak disertakan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/customer/order/qris-status": {
+            "get": {
+                "operationId": "v1.customer.order.qris-status",
+                "description": "Mengecek transaksi ke provider Sekeco/Midtrans (gateway = source of truth);\njika settlement \u2192 order ditandai lunas dan bill ditutup. Mengembalikan\n`payment_status` terkini. Idempotent \u2014 aman dipanggil berulang.",
+                "summary": "Polling status QRIS untuk open bill aktif (butuh X-Public-Token)",
+                "tags": [
+                    "Customer Open Bill"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "payment_status": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "payment_status"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Tidak ada QRIS payment aktif."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Header X-Public-Token tidak disertakan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/customer/order/qris-cancel": {
+            "delete": {
+                "operationId": "v1.customer.order.qris-cancel",
+                "summary": "Cancel QRIS untuk open bill aktif (butuh X-Public-Token)",
+                "tags": [
+                    "Customer Open Bill"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "QRIS payment dibatalkan."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Tidak ada QRIS payment aktif."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Header X-Public-Token tidak disertakan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/customer/orders/{order}": {
+            "get": {
+                "operationId": "v1.customer.public.order.show",
+                "description": "Cari order berdasarkan `order_number` ATAU `public_token`. Tidak butuh\nsession, token meja, cart, maupun header X-Public-Token.\n\nUntuk table order, status pembayaran disinkronkan ke provider QRIS lebih\ndulu (gateway = source of truth) sebelum keputusan expiry, sehingga endpoint\nini idempotent dan aman untuk polling progres pesanan (pending \u2192 confirmed \u2192\npreparing \u2192 ready \u2192 completed). Response selalu memakai shape order detail\nyang sama \u2014 termasuk saat cancelled/expired.",
+                "summary": "Detail order publik untuk tracking",
+                "tags": [
+                    "Customer Order Tracking"
+                ],
+                "parameters": [
+                    {
+                        "name": "order",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrderDetailResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Order tidak ditemukan."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/customer/organization/{slug}": {
+            "get": {
+                "operationId": "v1.customer.organization",
+                "summary": "Data publik organisasi berdasarkan slug",
+                "tags": [
+                    "Customer Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "phone": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "address": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "city": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "logo": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "timezone": {
+                                                    "type": "string"
+                                                },
+                                                "currency": {
+                                                    "type": "string"
+                                                },
+                                                "opening_hours": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": {}
+                                                },
+                                                "tax_enabled": {
+                                                    "type": "boolean",
+                                                    "description": "Pajak & service charge \u2014 agar frontend bisa menampilkan rincian."
+                                                },
+                                                "tax_rate": {
+                                                    "type": "string"
+                                                },
+                                                "service_charge_enabled": {
+                                                    "type": "boolean"
+                                                },
+                                                "service_charge_rate": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "phone",
+                                                "address",
+                                                "city",
+                                                "logo",
+                                                "timezone",
+                                                "currency",
+                                                "opening_hours",
+                                                "tax_enabled",
+                                                "tax_rate",
+                                                "service_charge_enabled",
+                                                "service_charge_rate"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order atau resource tidak ditemukan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/customer/orders/{order}/payment-status": {
+            "get": {
+                "operationId": "v1.customer.public.order.payment-status",
+                "description": "Endpoint utama untuk polling dari halaman pembayaran. Cari order by\n`order_number`/`public_token`, lalu untuk table order jalankan sinkronisasi\nke provider QRIS dengan urutan (gateway = source of truth):\n1. SELALU cek provider lebih dulu \u2014 jika settlement \u2192 tandai paid + confirmed\n   (termasuk rekonsiliasi order yang terlanjur cancelled).\n2. Provider menyatakan expired/cancelled/denied \u2192 tandai cancelled.\n3. Provider masih pending DAN sudah lewat deadline \u2192 baru tandai timeout.\n\nIdempotent: aman dipanggil berulang. Response menyertakan `server_time`\n(ISO-8601) untuk sinkronisasi countdown klien. Tidak butuh X-Public-Token,\ntoken meja, atau customer session.",
+                "summary": "Status pembayaran publik untuk table order (poll-able tanpa session)",
+                "tags": [
+                    "Customer Payment"
+                ],
+                "parameters": [
+                    {
+                        "name": "order",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrderDetailResource"
+                                        },
+                                        "server_time": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "server_time"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Order tidak ditemukan."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/customer/table/{qrToken}": {
+            "get": {
+                "operationId": "v1.customer.table.scan",
+                "description": "Endpoint ini HANYA melakukan lookup meja + organisasi sebagai entry point.\nTidak membuat order, tidak membuat session, dan tidak menyimpan apa pun.\nToken meja hanya dipakai frontend sebagai konteks sementara.",
+                "summary": "Validasi / lookup meja dari QR token",
+                "tags": [
+                    "Customer Table"
+                ],
+                "parameters": [
+                    {
+                        "name": "qrToken",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "organization": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "slug": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "name",
+                                                        "slug"
+                                                    ]
+                                                },
+                                                "table": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "location": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "name",
+                                                        "code",
+                                                        "location"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "organization",
+                                                "table"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order atau resource tidak ditemukan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Pesan error yang bisa ditampilkan ke pengguna."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "X-Public-Token": {
+                "type": "apiKey",
+                "description": "Gunakan public_token yang didapat dari scan QR meja (X-Public-Token header).",
+                "in": "header",
+                "name": "X-Public-Token"
+            }
+        },
+        "schemas": {
+            "AddItemsRequest": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "description": "\u2500\u2500 Root array \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "menu_id": {
+                                    "type": "integer",
+                                    "description": "\u2500\u2500 Per item \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+                                },
+                                "quantity": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 99
+                                },
+                                "note": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Support both 'note' and 'notes' temporarily",
+                                    "maxLength": 500
+                                },
+                                "notes": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 500
+                                },
+                                "selected_variants": {
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "description": "\u2500\u2500 Selected variants (new canonical payload) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "variant_group_id": {
+                                                "type": "integer"
+                                            },
+                                            "variant_id": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "required": [
+                                            "variant_group_id",
+                                            "variant_id"
+                                        ]
+                                    }
+                                },
+                                "children": {
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "description": "\u2500\u2500 Legacy children[] \u2014 backward compat only \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nTidak diproses oleh service baru. Masih divalidasi format-nya agar\ntidak melempar error 500 jika dikirim, tapi bisnis logikanya di-skip.",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "menu_id": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "menu_id",
+                                "quantity"
+                            ]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "items"
+                ],
+                "title": "AddItemsRequest"
+            },
+            "CreateOrderRequest": {
+                "type": "object",
+                "properties": {
+                    "qr_token": {
+                        "type": "string"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "menu_id": {
+                                    "type": "integer"
+                                },
+                                "quantity": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 99
+                                },
+                                "note": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 500
+                                },
+                                "notes": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 500
+                                },
+                                "selected_variants": {
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "variant_group_id": {
+                                                "type": "integer"
+                                            },
+                                            "variant_id": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "required": [
+                                            "variant_group_id",
+                                            "variant_id"
+                                        ]
+                                    }
+                                }
+                            },
+                            "required": [
+                                "menu_id",
+                                "quantity"
+                            ]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "qr_token",
+                    "items"
+                ],
+                "title": "CreateOrderRequest"
+            },
+            "ItemStatus": {
+                "type": "string",
+                "enum": [
+                    "pending",
+                    "preparing",
+                    "ready",
+                    "served",
+                    "cancelled"
+                ],
+                "x-enumNames": [
+                    "Pending",
+                    "Preparing",
+                    "Ready",
+                    "Served",
+                    "Cancelled"
+                ],
+                "title": "ItemStatus"
+            },
+            "ItemType": {
+                "type": "string",
+                "enum": [
+                    "product",
+                    "variant",
+                    "addon"
+                ],
+                "x-enumNames": [
+                    "Product",
+                    "Variant",
+                    "Addon"
+                ],
+                "title": "ItemType"
+            },
+            "MenuResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MenuType"
+                    },
+                    "parent_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "image": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "URL gambar siap pakai (path tersimpan dikonversi ke URL penuh)."
+                    },
+                    "sku": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "price": {
+                        "type": "string"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    },
+                    "is_required": {
+                        "type": "boolean"
+                    },
+                    "min_select": {
+                        "type": "integer"
+                    },
+                    "max_select": {
+                        "type": "integer"
+                    },
+                    "sort_order": {
+                        "type": "integer"
+                    },
+                    "metadata": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Data fleksibel tambahan. Untuk produk, dapat menyimpan kategori dalam format {\"category\": \"makanan\"}.",
+                        "properties": {
+                            "category": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MenuResource"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "type",
+                    "parent_id",
+                    "name",
+                    "image",
+                    "sku",
+                    "description",
+                    "price",
+                    "is_available",
+                    "is_required",
+                    "min_select",
+                    "max_select",
+                    "sort_order",
+                    "metadata"
+                ],
+                "title": "MenuResource"
+            },
+            "MenuType": {
+                "type": "string",
+                "enum": [
+                    "product",
+                    "variant_group",
+                    "variant",
+                    "addon_group",
+                    "addon"
+                ],
+                "x-enumNames": [
+                    "Product",
+                    "VariantGroup",
+                    "Variant",
+                    "AddonGroup",
+                    "Addon"
+                ],
+                "title": "MenuType"
+            },
+            "OrderDetailResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "order_number": {
+                        "type": "string"
+                    },
+                    "public_token": {
+                        "type": "string"
+                    },
+                    "order_type": {
+                        "type": "string"
+                    },
+                    "bill_status": {
+                        "type": "string"
+                    },
+                    "order_status": {
+                        "type": "string"
+                    },
+                    "payment_status": {
+                        "type": "string"
+                    },
+                    "payment_method": {
+                        "type": "string"
+                    },
+                    "payment_reference": {
+                        "type": "string"
+                    },
+                    "payment_expires_at": {
+                        "type": "string"
+                    },
+                    "customer_name": {
+                        "type": "string",
+                        "description": "Customer"
+                    },
+                    "customer_phone": {
+                        "type": "string"
+                    },
+                    "subtotal_amount": {
+                        "type": "string",
+                        "description": "Financial"
+                    },
+                    "discount_amount": {
+                        "type": "string"
+                    },
+                    "tax_amount": {
+                        "type": "string"
+                    },
+                    "service_charge_amount": {
+                        "type": "string"
+                    },
+                    "total_amount": {
+                        "type": "string"
+                    },
+                    "payment_amount": {
+                        "type": "string"
+                    },
+                    "change_amount": {
+                        "type": "string"
+                    },
+                    "tax_rate_snapshot": {
+                        "type": "string",
+                        "description": "Snapshot rates"
+                    },
+                    "service_charge_rate_snapshot": {
+                        "type": "string"
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "Timestamps"
+                    },
+                    "opened_at": {
+                        "type": "string"
+                    },
+                    "closed_at": {
+                        "type": "string"
+                    },
+                    "paid_at": {
+                        "type": "string"
+                    },
+                    "cancelled_at": {
+                        "type": "string"
+                    },
+                    "cancel_reason": {
+                        "type": "string"
+                    },
+                    "cancelled_by": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "dining_table": {
+                        "type": "object",
+                        "description": "Relations",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "code": {
+                                "type": "string"
+                            },
+                            "location": {
+                                "type": "string"
+                            },
+                            "organization": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "slug": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "id",
+                                    "name",
+                                    "slug"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name",
+                            "code",
+                            "location",
+                            "organization"
+                        ]
+                    },
+                    "created_by": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "items": {
+                        "type": "array",
+                        "description": "Items nested (root items + children)",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderItemResource"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "order_number",
+                    "public_token",
+                    "order_type",
+                    "bill_status",
+                    "order_status",
+                    "payment_status",
+                    "payment_method",
+                    "payment_reference",
+                    "payment_expires_at",
+                    "customer_name",
+                    "customer_phone",
+                    "subtotal_amount",
+                    "discount_amount",
+                    "tax_amount",
+                    "service_charge_amount",
+                    "total_amount",
+                    "payment_amount",
+                    "change_amount",
+                    "tax_rate_snapshot",
+                    "service_charge_rate_snapshot",
+                    "note",
+                    "opened_at",
+                    "closed_at",
+                    "paid_at",
+                    "cancelled_at",
+                    "cancel_reason",
+                    "created_at"
+                ],
+                "title": "OrderDetailResource"
+            },
+            "OrderItemResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "item_type": {
+                        "$ref": "#/components/schemas/ItemType"
+                    },
+                    "menu_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "base_price": {
+                        "type": "string",
+                        "description": "Harga breakdown"
+                    },
+                    "variant_total": {
+                        "type": "string"
+                    },
+                    "unit_price": {
+                        "type": "string"
+                    },
+                    "price": {
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "description": "legacy \u2014 sama dengan unit_price"
+                    },
+                    "subtotal": {
+                        "type": "string"
+                    },
+                    "item_status": {
+                        "$ref": "#/components/schemas/ItemStatus"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "selected_options": {
+                        "description": "Snapshot pilihan variant/addon \u2014 diambil dari metadata",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 0,
+                                "maxItems": 0,
+                                "additionalItems": false
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "item_type",
+                    "menu_id",
+                    "name",
+                    "base_price",
+                    "variant_total",
+                    "unit_price",
+                    "price",
+                    "quantity",
+                    "subtotal",
+                    "item_status",
+                    "note",
+                    "selected_options"
+                ],
+                "title": "OrderItemResource"
+            }
+        },
+        "responses": {
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

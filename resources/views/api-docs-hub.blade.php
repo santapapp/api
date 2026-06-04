@@ -255,6 +255,36 @@
             gap: 12px;
         }
 
+        .card.emerald:hover {
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: translateY(-8px);
+        }
+
+        .emerald .icon-container {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        .emerald .card-title {
+            color: #d1fae5;
+        }
+
+        .emerald .badge {
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.15);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .emerald .btn-link {
+            color: #34d399;
+        }
+
+        .emerald:hover .btn-link {
+            gap: 12px;
+        }
+
         footer {
             font-size: 0.85rem;
             color: rgba(255,255,255,0.3);
@@ -340,6 +370,29 @@
                 </div>
                 <div class="btn-link">
                     Buka Dokumentasi Customer
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
+            </a>
+
+            <!-- Admin / Full API Card -->
+            <a href="/docs/api/admin" class="card emerald">
+                <div>
+                    <div class="icon-container">
+                        <!-- Shield/Admin Icon SVG -->
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <div class="card-content">
+                        <h2 class="card-title">Admin / Full API</h2>
+                        <p class="card-desc">Dokumentasi lengkap seluruh endpoint Santap dalam satu tempat — staff/owner, kasir, dapur, dan pelanggan — termasuk endpoint upload media. Untuk admin/superadmin dashboard.</p>
+                        <div class="badge-list">
+                            <span class="badge">Bearer + X-Public-Token</span>
+                            <span class="badge">Semua Endpoint</span>
+                            <span class="badge">Upload Media</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-link">
+                    Buka Dokumentasi Admin
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                 </div>
             </a>

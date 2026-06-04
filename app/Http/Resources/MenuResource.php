@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +17,8 @@ class MenuResource extends JsonResource
             'type'         => $this->type,
             'parent_id'    => $this->parent_id,
             'name'         => $this->name,
-            'image'        => $this->image,
+            // URL gambar siap pakai (path tersimpan dikonversi ke URL penuh).
+            'image'        => MediaService::toUrl($this->image),
             'sku'          => $this->sku,
             'description'  => $this->description,
             'price'        => $this->price,

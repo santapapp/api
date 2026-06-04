@@ -17,6 +17,7 @@ use App\Models\DiningTable;
 use App\Models\Menu;
 use App\Models\Order;
 use App\Models\Organization;
+use App\Services\MediaService;
 use App\Services\OrderItemService;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
@@ -48,7 +49,7 @@ class CustomerController extends Controller
                 'phone'         => $org->phone,
                 'address'       => $org->address,
                 'city'          => $org->city,
-                'logo'          => $org->logo,
+                'logo'          => MediaService::toUrl($org->logo),
                 'timezone'      => $org->timezone,
                 'currency'      => $org->currency,
                 'opening_hours' => $org->opening_hours,

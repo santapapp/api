@@ -7,9 +7,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreOrganizationRequest;
 use App\Http\Requests\Organization\UpdateOrganizationRequest;
+use App\Http\Requests\Organization\UploadBannerRequest;
+use App\Http\Requests\Organization\UploadLogoRequest;
 use App\Http\Resources\OrganizationResource;
 use App\Models\Organization;
 use App\Models\OrganizationMember;
+use App\Services\MediaService;
 use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -100,5 +103,71 @@ class OrganizationController extends Controller
             'data'    => new OrganizationResource($org->fresh()),
             'message' => 'Pengaturan organisasi berhasil diupdate.',
         ]);
+    }
+
+    /**
+     * Upload logo organisasi aktif (multipart/form-data). Hanya owner.
+     *
+     * Field file: `logo` (jpeg/jpg/png/webp, maks 2 MB). Logo lama otomatis
+     * dihapus. Mengembalikan organisasi dengan `logo` berisi URL siap pakai.
+     */
+    public function uploadLogo(UploadLogoRequest $request, MediaService $media): JsonResponse
+    {
+        $org = $this->resolveOwnedOrganization($request, 'logo');
+
+        if ($org instanceof JsonResponse) {
+            return $org;
+        }
+
+        $path = $media->replace($request->file('logo'), 'organization/logos', $org->logo);
+        $org->update(['logo' => $path]);
+
+        return response()->json([
+            'data'    => new OrganizationResource($org->fresh()),
+            'message' => 'Logo organisasi berhasil diunggah.',
+        ]);
+    }
+
+    /**
+     * Upload banner organisasi aktif (multipart/form-data). Hanya owner.
+     *
+     * Field file: `banner` (jpeg/jpg/png/webp, maks 2 MB). Banner lama otomatis
+     * dihapus. Mengembalikan organisasi dengan `banner` berisi URL siap pakai.
+     */
+    public function uploadBanner(UploadBannerRequest $request, MediaService $media): JsonResponse
+    {
+        $org = $this->resolveOwnedOrganization($request, 'banner');
+
+        if ($org instanceof JsonResponse) {
+            return $org;
+        }
+
+        $path = $media->replace($request->file('banner'), 'organization/banners', $org->banner);
+        $org->update(['banner' => $path]);
+
+        return response()->json([
+            'data'    => new OrganizationResource($org->fresh()),
+            'message' => 'Banner organisasi berhasil diunggah.',
+        ]);
+    }
+
+    /**
+     * Resolusi organisasi aktif + gate owner. Mengembalikan Organization bila
+     * diizinkan, atau JsonResponse 403 bila bukan owner.
+     */
+    private function resolveOwnedOrganization(Request $request, string $what): Organization|JsonResponse
+    {
+        $orgId = app(OrganizationContext::class)->getOrganizationId();
+        $org   = Organization::findOrFail($orgId);
+
+        $member = OrganizationMember::where('organization_id', $orgId)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        if ($member->role !== 'owner') {
+            return response()->json(['message' => "Hanya owner yang dapat mengubah {$what} organisasi."], 403);
+        }
+
+        return $org;
     }
 }

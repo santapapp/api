@@ -20,12 +20,15 @@ class UpdateMenuRequest extends FormRequest
             'price'       => ['sometimes', 'numeric', 'min:0'],
             'sort_order'  => ['sometimes', 'integer', 'min:0'],
             'is_available' => ['sometimes', 'boolean'],
+            // URL gambar produk yang SUDAH di-host. API TIDAK menerima upload file —
+            // kirim URL string, bukan multipart. Kirim null untuk menghapus gambar.
             'image'       => ['sometimes', 'nullable', 'string', 'max:500'],
             'sku'         => ['sometimes', 'nullable', 'string', 'max:50'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'is_required' => ['sometimes', 'boolean'],
             'min_select'  => ['sometimes', 'integer', 'min:0', 'max:255'],
             'max_select'  => ['sometimes', 'integer', 'min:1', 'max:255'],
+            // Objek JSON bebas untuk data tambahan, mis. {"category": "makanan"}.
             'metadata'    => ['sometimes', 'nullable', 'array'],
         ];
     }

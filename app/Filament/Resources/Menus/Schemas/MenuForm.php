@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Menus\Schemas;
 
 use App\Enums\MenuType;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -52,6 +53,16 @@ class MenuForm
                 TextInput::make('metadata.category')
                     ->label('Category')
                     ->placeholder('e.g., Makanan, Minuman')
+                    ->visible(fn ($get) => $get('type') === \App\Enums\MenuType::Product->value),
+                FileUpload::make('image')
+                    ->label('Gambar Produk')
+                    ->image()
+                    ->disk('public')
+                    ->directory('menu/images')
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(2048)
+                    ->imagePreviewHeight('100')
+                    ->helperText('JPG/PNG/WEBP, maks 2 MB.')
                     ->visible(fn ($get) => $get('type') === \App\Enums\MenuType::Product->value),
                 TextInput::make('price')
                     ->required()

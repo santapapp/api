@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -14,6 +15,15 @@ class UserForm
     {
         return $schema
             ->components([
+                FileUpload::make('avatar')
+                    ->label('Avatar')
+                    ->avatar()
+                    ->image()
+                    ->disk('public')
+                    ->directory('users/avatars')
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(2048)
+                    ->helperText('JPG/PNG/WEBP, maks 2 MB.'),
                 TextInput::make('name')
                     ->required(),
                 TextInput::make('email')

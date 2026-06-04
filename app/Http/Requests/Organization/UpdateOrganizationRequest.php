@@ -17,7 +17,10 @@ class UpdateOrganizationRequest extends FormRequest
     {
         return [
             'name'                    => ['sometimes', 'string', 'max:255'],
+            // URL logo yang SUDAH di-host. API TIDAK menerima upload file —
+            // kirim URL string, bukan multipart. Kirim null untuk menghapus.
             'logo'                    => ['sometimes', 'nullable', 'string', 'max:500'],
+            // URL banner yang SUDAH di-host (string URL, bukan upload file).
             'banner'                  => ['sometimes', 'nullable', 'string', 'max:500'],
             'phone'                   => ['sometimes', 'nullable', 'string', 'max:20'],
             'email'                   => ['sometimes', 'nullable', 'email', 'max:255'],
