@@ -55,15 +55,14 @@ class MenuForm
                     ->placeholder('e.g., Makanan, Minuman')
                     ->visible(fn ($get) => $get('type') === \App\Enums\MenuType::Product->value),
                 FileUpload::make('image')
-                    ->label('Gambar Produk')
+                    ->label('Gambar')
                     ->image()
                     ->disk('public')
                     ->directory('menu/images')
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->maxSize(2048)
                     ->imagePreviewHeight('100')
-                    ->helperText('JPG/PNG/WEBP, maks 2 MB.')
-                    ->visible(fn ($get) => $get('type') === \App\Enums\MenuType::Product->value),
+                    ->helperText('JPG/PNG/WEBP, maks 2 MB.'),
                 TextInput::make('price')
                     ->required()
                     ->numeric()
