@@ -85,9 +85,15 @@ class MenusTable
                 SelectFilter::make('category')
                     ->label('Category')
                     ->options(function () {
-                        return \App\Models\Menu::whereNotNull('metadata->category')
+                        // Ambil sebagai kolom scalar beralias `category` lalu pluck.
+                        // pluck('metadata->category') tidak boleh dipakai: Eloquent
+                        // menafsirkannya sebagai nested property ($row->metadata->category)
+                        // → "Undefined property: stdClass::$metadata" di PostgreSQL.
+                        return \App\Models\Menu::query()
+                            ->whereNotNull('metadata->category')
+                            ->selectRaw("metadata->>'category' as category")
                             ->distinct()
-                            ->pluck('metadata->category', 'metadata->category')
+                            ->pluck('category', 'category')
                             ->toArray();
                     })
                     ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data) {
