@@ -8,43 +8,29 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Services\OrderQrisPaymentService;
 use App\Services\QrisService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\View\View;
 
-/**
- * Kumpulan action order yang dipakai bersama oleh OrdersTable (per-baris) dan
- * ViewOrder (header). Definisi tunggal agar perilaku konsisten di kedua tempat.
- *
- * Prinsip: gateway = source of truth. Tidak ada override payment bebas — hanya
- * "Tandai Lunas (Tunai)", "Sinkron dari Sekeco", dan "Batalkan QRIS".
- */
 class OrderActions
 {
-    /**
-     * Majukan tahap dapur. MODEL ITEM-DRIVEN: aksi ini memajukan SEMUA item aktif
-     * satu tahap (pending→preparing→ready→served), lalu order_status diturunkan
-     * ulang dari agregat item. Label mengikuti tahap order berikutnya.
-     *
-     * Hanya tampil setelah order dikonfirmasi (confirmed/preparing/ready) — order
-     * pending harus dibayar/dikonfirmasi dulu.
-     */
     public static function advanceStatus(): Action
     {
         return Action::make('advance_status')
             ->label(fn (Order $record): string => match ($record->order_status) {
                 OrderStatus::Confirmed => 'Mulai Masak',
                 OrderStatus::Preparing => 'Tandai Semua Siap',
-                OrderStatus::Ready     => 'Tandai Tersaji (Selesai)',
-                default                => 'Majukan',
+                OrderStatus::Ready => 'Tandai Tersaji (Selesai)',
+                default => 'Majukan',
             })
             ->icon(fn (Order $record): string => match ($record->order_status) {
                 OrderStatus::Confirmed => 'heroicon-o-fire',
                 OrderStatus::Preparing => 'heroicon-o-bell-alert',
-                OrderStatus::Ready     => 'heroicon-o-check-circle',
-                default                => 'heroicon-o-arrow-right',
+                OrderStatus::Ready => 'heroicon-o-check-circle',
+                default => 'heroicon-o-arrow-right',
             })
             ->color('primary')
             ->requiresConfirmation()
@@ -60,17 +46,56 @@ class OrderActions
 
                 Notification::make()
                     ->title('Status diperbarui')
-                    ->body("Pesanan {$record->order_number} → {$record->refresh()->order_status->getLabel()}.")
+                    ->body("Pesanan {$record->order_number} -> {$record->refresh()->order_status->getLabel()}.")
                     ->success()
                     ->send();
             });
     }
 
-    /**
-     * Batalkan pesanan dengan alasan. Item aktif ikut dibatalkan (cascade). Bila
-     * QRIS masih pending, batalkan juga di provider dan tandai payment cancelled.
-     * Order yang sudah paid tidak diubah pembayarannya.
-     */
+    public static function createQris(): Action
+    {
+        return Action::make('create_qris')
+            ->label(fn (Order $record): string => app(OrderQrisPaymentService::class)->isLocallyExpiredPending($record)
+                ? 'Regenerate QRIS'
+                : 'Buat QRIS Pembayaran')
+            ->icon('heroicon-o-qr-code')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading('Buat QRIS Pembayaran')
+            ->modalDescription('QRIS dibuat untuk order ini saja. Order lain tidak terpengaruh walau ada QRIS pending.')
+            ->visible(function (Order $record): bool {
+                $payments = app(OrderQrisPaymentService::class);
+
+                if ($record->payment_status === PaymentStatus::Paid || (float) $record->total_amount <= 0) {
+                    return false;
+                }
+
+                return $record->payment_status !== PaymentStatus::Pending
+                    || $payments->isLocallyExpiredPending($record);
+            })
+            ->action(function (Order $record): void {
+                try {
+                    $result = app(OrderQrisPaymentService::class)->create($record, app(QrisService::class));
+                } catch (\Throwable $e) {
+                    Notification::make()
+                        ->title('Gagal membuat QRIS')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->title($result['reused'] ? 'QRIS pending masih aktif' : 'QRIS payment dibuat')
+                    ->body($result['reused']
+                        ? 'Order ini sudah punya QRIS pending aktif. Gunakan QRIS existing.'
+                        : 'QRIS baru berhasil dibuat untuk order ini.')
+                    ->success()
+                    ->send();
+            });
+    }
+
     public static function cancelOrder(): Action
     {
         return Action::make('cancel_order')
@@ -90,28 +115,26 @@ class OrderActions
             ])
             ->requiresConfirmation()
             ->action(function (array $data, Order $record): void {
-                // Batalkan QRIS bila masih pending (best-effort).
                 if ($record->payment_status === PaymentStatus::Pending && $record->payment_reference) {
                     try {
-                        app(QrisService::class)->cancel($record->payment_reference);
-                    } catch (\Throwable $e) {
-                        // Diabaikan — pembatalan order tetap lanjut.
+                        app(OrderQrisPaymentService::class)->cancel($record, app(QrisService::class));
+                        $record->refresh();
+                    } catch (\Throwable) {
+                        // Pembatalan order tetap lanjut.
                     }
                 }
 
-                // Hanya turunkan payment ke cancelled jika belum lunas.
                 $payment = in_array($record->payment_status, [PaymentStatus::Pending, PaymentStatus::Unpaid], true)
                     ? PaymentStatus::Cancelled
                     : $record->payment_status;
 
                 $record->update([
-                    'order_status'   => OrderStatus::Cancelled,
+                    'order_status' => OrderStatus::Cancelled,
                     'payment_status' => $payment,
-                    'cancel_reason'  => $data['cancel_reason'],
-                    'cancelled_at'   => now(),
+                    'cancel_reason' => $data['cancel_reason'],
+                    'cancelled_at' => now(),
                 ]);
 
-                // Cascade: batalkan seluruh item aktif.
                 $record->cancelItems();
 
                 Notification::make()
@@ -122,9 +145,6 @@ class OrderActions
             });
     }
 
-    /**
-     * Tandai lunas secara manual (mis. pembayaran tunai). Idempotent via Order::markPaid().
-     */
     public static function markPaidCash(): Action
     {
         return Action::make('mark_paid_cash')
@@ -149,9 +169,6 @@ class OrderActions
             });
     }
 
-    /**
-     * Sinkronkan status pembayaran dari Sekeco/Midtrans (source of truth).
-     */
     public static function syncFromSekeco(): Action
     {
         return Action::make('sync_sekeco')
@@ -162,11 +179,10 @@ class OrderActions
                 && $record->payment_status === PaymentStatus::Pending
                 && ! empty($record->payment_reference))
             ->action(function (Order $record): void {
-                $result = app(QrisService::class)->check($record->payment_reference);
+                $sync = app(OrderQrisPaymentService::class)->sync($record, app(QrisService::class));
+                $result = $sync['result'];
 
                 if ($result['paid']) {
-                    $record->markPaid(closeBill: $record->order_type === OrderType::OpenBill);
-
                     Notification::make()
                         ->title('Pembayaran LUNAS')
                         ->body("Order {$record->order_number} sudah settlement di provider.")
@@ -176,27 +192,16 @@ class OrderActions
                     return;
                 }
 
-                if (in_array($result['status'], ['expired', 'cancelled', 'denied'], true)) {
-                    Notification::make()
-                        ->title('Provider: ' . $result['status'])
-                        ->body('Pembayaran tidak berhasil di provider.')
-                        ->warning()
-                        ->send();
-
-                    return;
-                }
-
                 Notification::make()
-                    ->title('Masih menunggu')
-                    ->body('Status provider: ' . $result['status'])
+                    ->title('Status provider: ' . $result['status'])
+                    ->body($result['status'] === 'pending'
+                        ? 'Pembayaran masih menunggu.'
+                        : 'Attempt QRIS sudah diperbarui sesuai status provider.')
                     ->info()
                     ->send();
             });
     }
 
-    /**
-     * Batalkan transaksi QRIS yang masih pending di provider.
-     */
     public static function cancelQris(): Action
     {
         return Action::make('cancel_qris')
@@ -209,7 +214,7 @@ class OrderActions
                 && ! empty($record->payment_reference))
             ->action(function (Order $record): void {
                 try {
-                    app(QrisService::class)->cancel($record->payment_reference);
+                    app(OrderQrisPaymentService::class)->cancel($record, app(QrisService::class));
                 } catch (\Throwable $e) {
                     Notification::make()
                         ->title('Gagal membatalkan QRIS')
@@ -220,8 +225,6 @@ class OrderActions
                     return;
                 }
 
-                $record->update(['payment_status' => PaymentStatus::Cancelled]);
-
                 Notification::make()
                     ->title('QRIS dibatalkan')
                     ->body("QRIS pesanan {$record->order_number} dibatalkan.")
@@ -230,10 +233,6 @@ class OrderActions
             });
     }
 
-    /**
-     * Tampilkan detail pembayaran dari Sekeco/Midtrans — di-fetch LAZY saat modal
-     * dibuka (on click), bukan saat halaman dimuat.
-     */
     public static function paymentDetail(): Action
     {
         return Action::make('payment_detail')
@@ -245,11 +244,10 @@ class OrderActions
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Tutup')
             ->modalContent(function (Order $record): View {
-                // Konsumsi data Sekeco hanya di sini (saat modal dibuka).
                 $result = app(QrisService::class)->check($record->payment_reference);
 
                 return view('filament.orders.payment-detail', [
-                    'order'  => $record,
+                    'order' => $record,
                     'result' => $result,
                 ]);
             });

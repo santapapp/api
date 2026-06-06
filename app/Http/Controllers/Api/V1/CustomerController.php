@@ -19,6 +19,7 @@ use App\Models\Order;
 use App\Models\Organization;
 use App\Services\MediaService;
 use App\Services\OrderItemService;
+use App\Services\OrderQrisPaymentService;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,9 +56,9 @@ class CustomerController extends Controller
                 'opening_hours' => $org->opening_hours,
                 // Pajak & service charge — agar frontend bisa menampilkan rincian.
                 'tax_enabled'            => $org->tax_enabled,
-                'tax_rate'               => $org->tax_rate,
+                'tax_rate'               => $org->tax_rate !== null ? (float) $org->tax_rate : null,
                 'service_charge_enabled' => $org->service_charge_enabled,
-                'service_charge_rate'    => $org->service_charge_rate,
+                'service_charge_rate'    => $org->service_charge_rate !== null ? (float) $org->service_charge_rate : null,
             ],
         ]);
     }
@@ -323,14 +324,22 @@ class CustomerController extends Controller
     /**
      * Tambah item ke open bill aktif (butuh X-Public-Token).
      *
-     * Payload memakai `selected_variants`. Harga dikalkulasi backend dan
-     * dibungkus DB transaction. Hanya untuk open bill (order_type=open_bill).
+     * Payload kanonik memakai `selected_options[{group_id, option_id}]`.
+     * `selected_variants` tetap diterima untuk backward compatibility. Harga
+     * dikalkulasi backend dan dibungkus DB transaction. Hanya untuk open bill
+     * (order_type=open_bill). Pending/paid QRIS memblokir tambah item.
      *
      * @throws ValidationException
      */
-    public function addItems(AddItemsRequest $request, OrderItemService $service): JsonResponse
+    public function addItems(
+        AddItemsRequest $request,
+        OrderItemService $service,
+        OrderQrisPaymentService $payments,
+        QrisService $qris,
+    ): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
+        $order = $payments->ensureItemsMutable($order, $qris);
 
         $service->addItems($order, $request->validated()['items']);
 
@@ -351,37 +360,19 @@ class CustomerController extends Controller
      * now() + QRIS_EXPIRY_MINUTES (default 15 menit). Pantau lewat
      * GET /v1/customer/order/qris-status.
      */
-    public function payQris(Request $request, QrisService $qris): JsonResponse
+    public function payQris(Request $request, QrisService $qris, OrderQrisPaymentService $payments): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
 
-        if ($order->payment_status === PaymentStatus::Paid) {
-            return response()->json(['message' => 'Order sudah dibayar.'], 422);
-        }
-
-        if ($order->allItems()->count() === 0) {
-            return response()->json(['message' => 'Order belum memiliki item.'], 422);
-        }
-
-        $reference = "santap-{$order->id}";
-        $result    = $qris->create($reference, (float) $order->total_amount);
-
-        $order->update([
-            'payment_status'     => PaymentStatus::Pending,
-            'payment_method'     => 'qris',
-            'payment_reference'  => $reference,
-            'payment_expires_at' => now()->addMinutes((int) config('santap.qris.expiry_minutes', 15)),
-        ]);
+        $result = $payments->create($order, $qris);
+        /** @var Order $freshOrder */
+        $freshOrder = $result['order'];
 
         return response()->json([
-            'data' => [
-                'qr_url'             => $result['data']['actions'][0]['url'] ?? $result['data']['qr_url'] ?? null,
-                'qr_string'          => $result['data']['qr_string'] ?? null,
-                'payment_reference'  => $reference,
-                'payment_expires_at' => $order->fresh()->payment_expires_at?->toIso8601String(),
-                'server_time'        => now()->toIso8601String(),
-            ],
-            'message' => 'QRIS payment dibuat.',
+            'data' => $payments->responsePayload($freshOrder, $result['qris']),
+            'message' => $result['reused']
+                ? 'Order ini masih memiliki QRIS pending aktif.'
+                : 'QRIS payment dibuat.',
         ]);
     }
 
@@ -392,16 +383,14 @@ class CustomerController extends Controller
      * jika settlement → order ditandai lunas dan bill ditutup. Mengembalikan
      * `payment_status` terkini. Idempotent — aman dipanggil berulang.
      */
-    public function qrisStatus(Request $request, QrisService $qris): JsonResponse
+    public function qrisStatus(Request $request, QrisService $qris, OrderQrisPaymentService $payments): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
 
-        if (! $order->payment_reference) {
-            return response()->json(['message' => 'Tidak ada QRIS payment aktif.'], 422);
-        }
-
         $before = $order->payment_status->value;
-        $result = $qris->check($order->payment_reference);
+        $sync = $payments->sync($order, $qris);
+        $freshOrder = $sync['order'];
+        $result = $sync['result'];
 
         Log::info('QRIS sync (open bill)', [
             'order_no'              => $order->order_number,
@@ -411,39 +400,19 @@ class CustomerController extends Controller
             'provider_tx_status'    => $result['transaction_status'],
         ]);
 
-        if ($result['paid']) {
-            $order->markPaid(closeBill: true);
-
-            Log::info('QRIS sync (open bill): order ditandai PAID', [
-                'order_no'             => $order->order_number,
-                'payment_status_after' => $order->payment_status->value,
-            ]);
-        }
-
         return response()->json([
-            'data' => [
-                'payment_status' => $order->fresh()->payment_status,
-            ],
+            'data' => $payments->responsePayload($freshOrder, $sync['qris']),
         ]);
     }
 
     /**
      * Cancel QRIS untuk open bill aktif (butuh X-Public-Token).
      */
-    public function qrisCancel(Request $request, QrisService $qris): JsonResponse
+    public function qrisCancel(Request $request, QrisService $qris, OrderQrisPaymentService $payments): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
 
-        if (! $order->payment_reference) {
-            return response()->json(['message' => 'Tidak ada QRIS payment aktif.'], 422);
-        }
-
-        $qris->cancel($order->payment_reference);
-
-        $order->update([
-            'payment_status'    => PaymentStatus::Cancelled,
-            'payment_reference' => null,
-        ]);
+        $payments->cancel($order, $qris);
 
         return response()->json(['message' => 'QRIS payment dibatalkan.']);
     }

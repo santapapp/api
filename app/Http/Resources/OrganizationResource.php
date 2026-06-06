@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\NormalizesNumbers;
 use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrganizationResource extends JsonResource
 {
+    use NormalizesNumbers;
+
     public function toArray(Request $request): array
     {
         return [
@@ -29,17 +32,17 @@ class OrganizationResource extends JsonResource
             'province'               => $this->province,
             'postal_code'            => $this->postal_code,
             // GPS
-            'latitude'               => $this->latitude,
-            'longitude'              => $this->longitude,
+            'latitude'               => self::num($this->latitude),
+            'longitude'              => self::num($this->longitude),
             // Lokalisasi
             'timezone'               => $this->timezone,
             'currency'               => $this->currency,
             // Pajak
             'tax_enabled'            => $this->tax_enabled,
-            'tax_rate'               => $this->tax_rate,
+            'tax_rate'               => self::num($this->tax_rate),
             // Service charge
             'service_charge_enabled' => $this->service_charge_enabled,
-            'service_charge_rate'    => $this->service_charge_rate,
+            'service_charge_rate'    => self::num($this->service_charge_rate),
             // JSON
             'opening_hours'          => $this->opening_hours,
             'settings'               => $this->settings,

@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Orders\Pages;
 
+use App\Enums\OrderType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Resources\Orders\OrderResource;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +17,23 @@ class ListOrders extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Action::make('create_cashier_order')
+                ->label('Buat Order Kasir')
+                ->icon('heroicon-o-plus-circle')
+                ->color('primary')
+                ->url(OrderResource::getUrl('create', [
+                    'order_type' => OrderType::CashierOrder->value,
+                ])),
+
+            Action::make('create_open_bill')
+                ->label('Buat Open Bill')
+                ->icon('heroicon-o-receipt-percent')
+                ->color('warning')
+                ->url(OrderResource::getUrl('create', [
+                    'order_type' => OrderType::OpenBill->value,
+                ])),
+        ];
     }
 
     public function getTabs(): array

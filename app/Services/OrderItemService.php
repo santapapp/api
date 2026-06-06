@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ItemStatus;
 use App\Enums\ItemType;
 use App\Enums\MenuType;
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Models\Menu;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -15,12 +18,7 @@ use Illuminate\Validation\ValidationException;
 class OrderItemService
 {
     /**
-     * Tambah satu atau lebih item ke order.
-     * Seluruh proses dibungkus dalam DB transaction.
-     *
-     * @param  Order  $order
-     * @param  array  $items  — validated array dari AddItemsRequest
-     * @throws ValidationException
+     * @param array<int, array<string, mixed>> $items
      */
     public function addItems(Order $order, array $items): void
     {
@@ -30,29 +28,77 @@ class OrderItemService
             }
 
             $order->recalculate();
+            $this->syncOpenBillKitchenStatus($order);
+        });
+    }
+
+    public function updateQuantity(Order $order, OrderItem $item, int $quantity): void
+    {
+        DB::transaction(function () use ($order, $item, $quantity): void {
+            $lockedItem = OrderItem::where('order_id', $order->id)
+                ->whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedItem->item_status !== ItemStatus::Pending) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Quantity hanya bisa diubah untuk item yang masih pending.',
+                ]);
+            }
+
+            if ($lockedItem->parent_item_id !== null) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Quantity hanya bisa diubah pada item utama.',
+                ]);
+            }
+
+            $lockedItem->update(['quantity' => $quantity]);
+            $lockedItem->syncSubtotal();
+
+            $order->recalculate();
+            $this->syncOpenBillKitchenStatus($order);
+        });
+    }
+
+    public function removeItem(Order $order, OrderItem $item): void
+    {
+        DB::transaction(function () use ($order, $item): void {
+            $lockedItem = OrderItem::where('order_id', $order->id)
+                ->whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedItem->item_status !== ItemStatus::Pending) {
+                throw ValidationException::withMessages([
+                    'item' => 'Item hanya bisa dihapus saat masih pending.',
+                ]);
+            }
+
+            $lockedItem->delete();
+
+            $order->recalculate();
+            $this->syncOpenBillKitchenStatus($order);
         });
     }
 
     /**
-     * Proses satu item: validasi, kalkulasi harga, simpan snapshot.
+     * @param array<string, mixed> $itemData
      */
     private function processItem(Order $order, array $itemData, int $index): void
     {
-        // ── 1. Load product dengan semua variant groups dan variants ──────────
         $product = Menu::with([
-            'children' => function ($q) {
-                // Hanya variant_group yang available
-                $q->where('type', MenuType::VariantGroup)
-                  ->where('is_available', true)
-                  ->with(['children' => function ($q2) {
-                      // Hanya variant yang available
-                      $q2->where('type', MenuType::Variant)
-                         ->where('is_available', true);
-                  }]);
+            'children' => function ($query): void {
+                $query->whereIn('type', [MenuType::VariantGroup, MenuType::AddonGroup])
+                    ->where('is_available', true)
+                    ->with(['children' => function ($childQuery): void {
+                        $childQuery->whereIn('type', [MenuType::Variant, MenuType::Addon])
+                            ->where('is_available', true)
+                            ->orderBy('sort_order');
+                    }])
+                    ->orderBy('sort_order');
             },
         ])->find($itemData['menu_id']);
 
-        // ── 2. Validasi: menu harus ada, type product, available, & org sama ──
         if (! $product) {
             throw ValidationException::withMessages([
                 "items.{$index}.menu_id" => ['Menu tidak ditemukan.'],
@@ -79,62 +125,54 @@ class OrderItemService
             ]);
         }
 
-        // ── 3. Index variant groups dari product ──────────────────────────────
-        // $variantGroupsById: [ group_id => Menu(variant_group) with children(variants) ]
-        $variantGroupsById = $product->children->keyBy('id');
-
-        // ── 4. Proses selected_variants ───────────────────────────────────────
-        $selectedVariantData = $itemData['selected_variants'] ?? [];
-        $validatedVariants   = [];
-        $variantTotal        = 0.0;
-
-        // Kelompokkan pilihan per group_id
+        $optionGroupsById = $product->children->keyBy('id');
+        $selectedOptionData = $this->normalizeSelectedOptions($itemData);
+        $validatedOptions = [];
+        $optionTotal = 0.0;
         $selectedByGroupId = [];
-        foreach ($selectedVariantData as $vIndex => $sel) {
-            $groupId   = $sel['variant_group_id'];
-            $variantId = $sel['variant_id'];
 
-            // Validasi: group harus child dari product ini
-            if (! $variantGroupsById->has($groupId)) {
+        foreach ($selectedOptionData as $optionIndex => $selection) {
+            $groupId = $selection['group_id'];
+            $optionId = $selection['option_id'];
+
+            if (! $optionGroupsById->has($groupId)) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.selected_variants.{$vIndex}.variant_group_id" => [
-                        'Variant group tidak ditemukan pada produk ini.',
+                    "items.{$index}.selected_options.{$optionIndex}.group_id" => [
+                        'Option group tidak ditemukan pada produk ini.',
                     ],
                 ]);
             }
 
-            $group    = $variantGroupsById->get($groupId);
-            $variants = $group->children->keyBy('id');
+            $group = $optionGroupsById->get($groupId);
+            $options = $group->children->keyBy('id');
 
-            // Validasi: variant harus child dari group ini
-            if (! $variants->has($variantId)) {
+            if (! $options->has($optionId)) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.selected_variants.{$vIndex}.variant_id" => [
-                        'Variant tidak ditemukan pada group ini.',
+                    "items.{$index}.selected_options.{$optionIndex}.option_id" => [
+                        'Option tidak ditemukan pada group ini.',
                     ],
                 ]);
             }
 
-            $variant       = $variants->get($variantId);
-            $variantPrice  = (float) $variant->price;
-            $variantTotal += $variantPrice;
+            $option = $options->get($optionId);
+            $optionPrice = (float) $option->price;
+            $optionTotal += $optionPrice;
 
-            $validatedVariants[] = [
-                'group'        => $group,
-                'variant'      => $variant,
-                'variantPrice' => $variantPrice,
+            $validatedOptions[] = [
+                'group' => $group,
+                'option' => $option,
+                'optionPrice' => $optionPrice,
             ];
 
-            $selectedByGroupId[$groupId][] = $variantId;
+            $selectedByGroupId[$groupId][] = $optionId;
         }
 
-        // ── 5. Validasi is_required, min_select, max_select per group ─────────
-        foreach ($variantGroupsById as $groupId => $group) {
+        foreach ($optionGroupsById as $groupId => $group) {
             $selectedCount = count($selectedByGroupId[$groupId] ?? []);
 
             if ($group->is_required && $selectedCount === 0) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.selected_variants" => [
+                    "items.{$index}.selected_options" => [
                         "Pilihan '{$group->name}' wajib dipilih.",
                     ],
                 ]);
@@ -142,7 +180,7 @@ class OrderItemService
 
             if ($selectedCount < $group->min_select) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.selected_variants" => [
+                    "items.{$index}.selected_options" => [
                         "Pilihan '{$group->name}' minimal {$group->min_select} item.",
                     ],
                 ]);
@@ -150,49 +188,82 @@ class OrderItemService
 
             if ($group->max_select > 0 && $selectedCount > $group->max_select) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.selected_variants" => [
+                    "items.{$index}.selected_options" => [
                         "Pilihan '{$group->name}' maksimal {$group->max_select} item.",
                     ],
                 ]);
             }
         }
 
-        // ── 6. Kalkulasi harga — BACKEND ONLY ─────────────────────────────────
-        $basePrice    = round((float) $product->price, 2);
-        $variantTotal = round($variantTotal, 2);
-        $unitPrice    = round($basePrice + $variantTotal, 2);
-        $qty          = (int) $itemData['quantity'];
-        $subtotal     = round($unitPrice * $qty, 2);
-
-        // Support both 'note' and 'notes' temporarily
+        $basePrice = round((float) $product->price, 2);
+        $optionTotal = round($optionTotal, 2);
+        $unitPrice = round($basePrice + $optionTotal, 2);
+        $quantity = (int) $itemData['quantity'];
+        $subtotal = round($unitPrice * $quantity, 2);
         $note = $itemData['notes'] ?? $itemData['note'] ?? null;
 
-        // ── 7. Bangun snapshot selected_options untuk metadata ────────────────
         $selectedOptions = [];
-        foreach ($validatedVariants as $v) {
+        foreach ($validatedOptions as $validatedOption) {
             $selectedOptions[] = [
-                'group_id'    => $v['group']->id,
-                'group_name'  => $v['group']->name,
-                'option_id'   => $v['variant']->id,
-                'option_name' => $v['variant']->name,
-                'price_delta' => $v['variantPrice'],
+                'group_id' => $validatedOption['group']->id,
+                'group_name' => $validatedOption['group']->name,
+                'group_type' => $validatedOption['group']->type->value,
+                'option_id' => $validatedOption['option']->id,
+                'option_name' => $validatedOption['option']->name,
+                'option_type' => $validatedOption['option']->type->value,
+                'price_delta' => $validatedOption['optionPrice'],
             ];
         }
 
-        // ── 8. Simpan OrderItem dengan snapshot ───────────────────────────────
         OrderItem::create([
-            'order_id'      => $order->id,
-            'menu_id'       => $product->id,
-            'item_type'     => ItemType::Product->value,
-            'name'          => $product->name,
-            'base_price'    => $basePrice,
-            'variant_total' => $variantTotal,
-            'unit_price'    => $unitPrice,
-            'price'         => $unitPrice,   // legacy field — sama dengan unit_price
-            'quantity'      => $qty,
-            'subtotal'      => $subtotal,
-            'note'          => $note,
-            'metadata'      => empty($selectedOptions) ? null : ['selected_options' => $selectedOptions],
+            'order_id' => $order->id,
+            'menu_id' => $product->id,
+            'item_type' => ItemType::Product->value,
+            'name' => $product->name,
+            'base_price' => $basePrice,
+            'variant_total' => $optionTotal,
+            'unit_price' => $unitPrice,
+            'price' => $unitPrice,
+            'quantity' => $quantity,
+            'subtotal' => $subtotal,
+            'note' => $note,
+            'metadata' => empty($selectedOptions) ? null : ['selected_options' => $selectedOptions],
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $itemData
+     * @return array<int, array{group_id: mixed, option_id: mixed}>
+     */
+    private function normalizeSelectedOptions(array $itemData): array
+    {
+        $selected = $itemData['selected_options'] ?? null;
+
+        if (is_array($selected)) {
+            return array_map(fn (array $option): array => [
+                'group_id' => $option['group_id'] ?? $option['variant_group_id'] ?? null,
+                'option_id' => $option['option_id'] ?? $option['variant_id'] ?? null,
+            ], $selected);
+        }
+
+        $legacy = $itemData['selected_variants'] ?? [];
+
+        return array_map(fn (array $option): array => [
+            'group_id' => $option['variant_group_id'] ?? null,
+            'option_id' => $option['variant_id'] ?? null,
+        ], is_array($legacy) ? $legacy : []);
+    }
+
+    private function syncOpenBillKitchenStatus(Order $order): void
+    {
+        if ($order->order_type !== OrderType::OpenBill) {
+            return;
+        }
+
+        if ($order->order_status === OrderStatus::Pending) {
+            $order->update(['order_status' => OrderStatus::Confirmed]);
+        }
+
+        $order->syncStatusFromItems();
     }
 }

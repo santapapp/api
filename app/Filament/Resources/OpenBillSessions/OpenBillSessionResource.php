@@ -7,10 +7,14 @@ namespace App\Filament\Resources\OpenBillSessions;
 use App\Enums\BillStatus;
 use App\Enums\OrderType;
 use App\Filament\Resources\OpenBillSessions\Pages\ListOpenBillSessions;
+use App\Filament\Resources\OpenBillSessions\Pages\ViewOpenBillSession;
 use App\Filament\Resources\OpenBillSessions\Tables\OpenBillSessionsTable;
+use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
+use App\Filament\Resources\Orders\Schemas\OrderInfolist;
 use App\Models\Order;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +28,8 @@ use Illuminate\Database\Eloquent\Model;
  * sudah closed/paid/expired/cancelled otomatis keluar dari daftar karena bill_status
  * tidak lagi `open`.
  *
- * Read-only: pembuatan open bill hanya lewat API cashier, bukan dari dashboard.
+ * Resource ini tetap list-only; pembuatan open bill diarahkan ke halaman create
+ * Orders agar default status/snapshot rate konsisten dengan order kasir.
  */
 class OpenBillSessionResource extends Resource
 {
@@ -55,15 +60,23 @@ class OpenBillSessionResource extends Resource
         return OpenBillSessionsTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return OrderInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ItemsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListOpenBillSessions::route('/'),
+            'view'  => ViewOpenBillSession::route('/{record}'),
         ];
     }
 

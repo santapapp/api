@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/cashier/orders', [CashierOrderController::class, 'store'])->name('cashier.orders.store');
         Route::get('/cashier/orders/{id}', [CashierOrderController::class, 'show'])->name('cashier.orders.show');
         Route::post('/cashier/orders/{id}/items', [CashierOrderController::class, 'addItems'])->name('cashier.orders.add-items');
+        Route::patch('/cashier/orders/{id}/items/{itemId}', [CashierOrderController::class, 'updateItem'])->name('cashier.orders.update-item');
         Route::delete('/cashier/orders/{id}/items/{itemId}', [CashierOrderController::class, 'removeItem'])->name('cashier.orders.remove-item');
         Route::post('/cashier/orders/{id}/confirm', [CashierOrderController::class, 'confirm'])->name('cashier.orders.confirm');
         Route::post('/cashier/orders/{id}/pay-cash', [CashierOrderController::class, 'payCash'])->name('cashier.orders.pay-cash');

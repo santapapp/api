@@ -288,6 +288,26 @@ Untuk memperbarui status item pesanan spesifik (misal dari `pending` -> `cooking
 
 Kasir mengelola tagihan meja (bill), memproses pembayaran dari pelanggan (baik tunai maupun QRIS online), dan menutup sesi meja.
 
+> Catatan implementasi saat ini: API staff aktif memakai prefix `/v1/cashier/orders`.
+> Open bill direpresentasikan sebagai `orders.order_type = open_bill` dan `bill_status = open`.
+> Guard duplicate QRIS selalu scoped ke `orders.id` yang sedang diproses: satu order tidak boleh membuat QRIS baru saat attempt QRIS order itu masih pending, tetapi order lain tetap boleh membuat QRIS sendiri.
+> Saat QRIS dibatalkan, expired, atau failed, attempt lama disimpan di `orders.metadata.qris_attempts[]`; attempt aktif tersimpan ringkas di `orders.metadata.qris_active` tanpa raw response penuh dari provider.
+> Item tidak boleh ditambah, diubah, atau dihapus ketika QRIS order tersebut masih pending. Kasir harus cancel QRIS dulu, atau tunggu expired lalu regenerate.
+
+Endpoint cashier/open bill utama:
+
+```http
+GET    /v1/cashier/orders?order_type=open_bill&bill_status=open
+GET    /v1/cashier/orders/{id}
+POST   /v1/cashier/orders/{id}/items
+PATCH  /v1/cashier/orders/{id}/items/{itemId}
+DELETE /v1/cashier/orders/{id}/items/{itemId}
+POST   /v1/cashier/orders/{id}/pay-qris
+GET    /v1/cashier/orders/{id}/qris-status
+DELETE /v1/cashier/orders/{id}/qris-cancel
+POST   /v1/cashier/orders/{id}/close
+```
+
 ```mermaid
 sequenceDiagram
     actor Cashier as Kasir (Flutter)
@@ -424,4 +444,3 @@ Midtrans / QRIS Bridge akan memicu webhook ketika status transaksi berubah (misa
     "fraud_status": "accept"
   }
   ```
-

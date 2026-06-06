@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Order;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
+use App\Services\OrderQrisPaymentService;
 use App\Services\QrisService;
 use Illuminate\Support\Facades\Log;
 
@@ -33,7 +34,7 @@ class ExpirePendingOrders extends Command
      * → rekonsiliasi menjadi paid. Hanya yang benar-benar belum lunas yang di-expire.
      * Order TIDAK PERNAH dibatalkan hanya berdasarkan deadline lokal.
      */
-    public function handle(QrisService $qris)
+    public function handle(QrisService $qris, OrderQrisPaymentService $payments)
     {
         $expiredOrders = Order::where('payment_status', PaymentStatus::Pending)
             ->whereNotNull('payment_expires_at')
@@ -49,6 +50,17 @@ class ExpirePendingOrders extends Command
         $reconciled = 0;
 
         foreach ($expiredOrders as $order) {
+            if ($order->order_type === OrderType::OpenBill) {
+                $payments->releaseExpiredPending($order, $qris);
+                $expired++;
+
+                Log::info('ExpirePendingOrders: open bill QRIS attempt released', [
+                    'order_no' => $order->order_number,
+                ]);
+
+                continue;
+            }
+
             // (1) Final sync ke provider sebelum keputusan apa pun.
             if ($order->payment_reference) {
                 $result = $qris->check($order->payment_reference);

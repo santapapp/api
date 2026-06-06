@@ -6,6 +6,25 @@ namespace App\Http\Requests\Customer;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * @body array{
+ *   qr_token: string,
+ *   items: array<int, array{
+ *     menu_id: int,
+ *     quantity: int,
+ *     note?: string|null,
+ *     notes?: string|null,
+ *     selected_options?: array<int, array{
+ *       group_id: int,
+ *       option_id: int
+ *     }>,
+ *     selected_variants?: array<int, array{
+ *       variant_group_id: int,
+ *       variant_id: int
+ *     }>
+ *   }>
+ * }
+ */
 class CreateOrderRequest extends FormRequest
 {
     public function authorize(): bool
@@ -22,6 +41,9 @@ class CreateOrderRequest extends FormRequest
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.note'  => ['nullable', 'string', 'max:500'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],
+            'items.*.selected_options'                          => ['nullable', 'array'],
+            'items.*.selected_options.*.group_id'                => ['required', 'integer', 'exists:menus,id'],
+            'items.*.selected_options.*.option_id'               => ['required', 'integer', 'exists:menus,id'],
             'items.*.selected_variants'                          => ['nullable', 'array'],
             'items.*.selected_variants.*.variant_group_id'       => ['required', 'integer', 'exists:menus,id'],
             'items.*.selected_variants.*.variant_id'             => ['required', 'integer', 'exists:menus,id'],

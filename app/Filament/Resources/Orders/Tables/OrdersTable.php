@@ -127,6 +127,7 @@ class OrdersTable
                 ActionGroup::make([
                     ViewAction::make(),
                     OrderActions::advanceStatus(),
+                    OrderActions::createQris(),
                     OrderActions::paymentDetail(),
                     OrderActions::syncFromSekeco(),
                     OrderActions::markPaidCash(),

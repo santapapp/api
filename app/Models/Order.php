@@ -174,11 +174,15 @@ class Order extends Model
             return;
         }
 
+        $nextOrderStatus = in_array($this->order_status, [OrderStatus::Pending, OrderStatus::Cancelled], true)
+            ? OrderStatus::Confirmed
+            : $this->order_status;
+
         $attributes = [
             'payment_status' => PaymentStatus::Paid,
             'payment_amount' => $this->total_amount,
             'change_amount'  => 0,
-            'order_status'   => OrderStatus::Confirmed,
+            'order_status'   => $nextOrderStatus,
             'paid_at'        => $this->paid_at ?? now(),
             // Bersihkan jejak pembatalan jika order direkonsiliasi dari cancelled.
             'cancel_reason'  => null,

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders;
 
+use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Filament\Resources\Orders\Pages\ViewOrder;
 use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
@@ -48,14 +49,15 @@ class OrderResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListOrders::route('/'),
-            'view' => ViewOrder::route('/{record}'),
+            'index'  => ListOrders::route('/'),
+            'create' => CreateOrder::route('/create'),
+            'view'   => ViewOrder::route('/{record}'),
         ];
     }
 
     public static function canCreate(): bool
     {
-        return false;
+        return true;
     }
 
     public static function canEdit(\Illuminate\Database\Eloquent\Model|Order $record): bool

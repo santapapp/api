@@ -13,6 +13,10 @@ use Illuminate\Foundation\Http\FormRequest;
  *     quantity: int,
  *     note?: string|null,
  *     notes?: string|null,
+ *     selected_options?: array<int, array{
+ *       group_id: int,
+ *       option_id: int
+ *     }>,
  *     selected_variants?: array<int, array{
  *       variant_group_id: int,
  *       variant_id: int
@@ -41,7 +45,10 @@ class AddItemsRequest extends FormRequest
             'items.*.note'  => ['nullable', 'string', 'max:500'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],
 
-            // ── Selected variants (new canonical payload) ─────────────────────
+            // Selected options (canonical) + selected_variants (legacy compat)
+            'items.*.selected_options'                           => ['nullable', 'array'],
+            'items.*.selected_options.*.group_id'                 => ['required', 'integer', 'exists:menus,id'],
+            'items.*.selected_options.*.option_id'                => ['required', 'integer', 'exists:menus,id'],
             'items.*.selected_variants'                          => ['nullable', 'array'],
             'items.*.selected_variants.*.variant_group_id'       => ['required', 'integer', 'exists:menus,id'],
             'items.*.selected_variants.*.variant_id'             => ['required', 'integer', 'exists:menus,id'],

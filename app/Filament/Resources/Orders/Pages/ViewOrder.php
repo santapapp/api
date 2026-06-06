@@ -14,6 +14,7 @@ class ViewOrder extends ViewRecord
     {
         return [
             OrderActions::advanceStatus(),
+            OrderActions::createQris(),
             OrderActions::paymentDetail(),
             OrderActions::syncFromSekeco(),
             OrderActions::markPaidCash(),

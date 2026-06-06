@@ -27,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
+            \Illuminate\Support\Facades\Log::error('Validation failed on endpoint', [
+                'url' => $request->fullUrl(),
+                'payload' => $request->all(),
+                'errors' => $e->errors(),
+            ]);
             if ($request->is('v1/*') || $request->is('health') || $request->expectsJson()) {
                 return response()->json([
                     'message' => 'Validasi gagal.',

@@ -8,6 +8,7 @@ use App\Enums\BillStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Services\OrderQrisPaymentService;
 use App\Services\QrisService;
 use Closure;
 use Illuminate\Http\Request;
@@ -24,10 +25,6 @@ class EnsureCustomerToken
             return response()->json(['message' => 'Token tidak ditemukan.'], 401);
         }
 
-        // Middleware ini KHUSUS untuk open bill aktif. Table order bersifat
-        // stateless dan TIDAK pernah valid lewat jalur ini, meskipun punya
-        // public_token — table order memakai endpoint publik berbasis
-        // order_number/public_token (tracking & payment-status).
         $order = Order::where('public_token', $token)
             ->where('order_type', OrderType::OpenBill)
             ->where('bill_status', BillStatus::Open)
@@ -39,57 +36,20 @@ class EnsureCustomerToken
             ], 403);
         }
 
-        // Cek payment timeout — TAPI gateway = source of truth: final sync ke
-        // provider lebih dulu sebelum memutuskan expired.
         if (
-            $order->payment_status === PaymentStatus::Pending &&
-            $order->payment_expires_at !== null &&
-            $order->payment_expires_at->isPast()
+            $order->payment_status === PaymentStatus::Pending
+            && $order->payment_expires_at !== null
+            && $order->payment_expires_at->isPast()
         ) {
-            // Final sync: jika provider ternyata lunas, angkat menjadi paid & lanjut.
-            if ($order->payment_reference) {
-                $result = app(QrisService::class)->check($order->payment_reference);
+            $order = app(OrderQrisPaymentService::class)
+                ->releaseExpiredPending($order, app(QrisService::class));
 
-                Log::info('EnsureCustomerToken: QRIS sync', [
-                    'order_no'              => $order->order_number,
-                    'payment_reference'     => $order->payment_reference,
-                    'payment_status_before' => $order->payment_status->value,
-                    'provider_status'       => $result['status'],
-                    'provider_tx_status'    => $result['transaction_status'],
-                ]);
-
-                if ($result['paid']) {
-                    $order->markPaid(closeBill: true);
-                    $request->attributes->set('customer_order', $order->fresh());
-
-                    return $next($request);
-                }
-            }
-
-            // Benar-benar belum lunas saat deadline → expire (konsisten: cancelled).
-            $order->markPaymentExpired('Payment Timeout');
-
-            Log::info('EnsureCustomerToken: order di-expire', [
+            Log::info('EnsureCustomerToken: expired QRIS attempt released', [
                 'order_no' => $order->order_number,
-                'reason'   => 'Payment Timeout (provider belum settlement saat deadline)',
+                'payment_status_after' => $order->payment_status->value,
             ]);
-
-            if ($order->payment_reference) {
-                try {
-                    app(QrisService::class)->cancel($order->payment_reference);
-                } catch (\Throwable $e) {
-                    Log::warning("EnsureCustomerToken: gagal cancel QRIS order {$order->id}: " . $e->getMessage());
-                }
-            }
-
-            return response()->json([
-                'status'    => 'expired',
-                'message'   => 'Waktu pembayaran sudah habis. Silakan buat pesanan ulang.',
-                'can_retry' => true,
-            ], 403);
         }
 
-        // Simpan order ke request attributes untuk dipakai controller
         $request->attributes->set('customer_order', $order);
 
         return $next($request);

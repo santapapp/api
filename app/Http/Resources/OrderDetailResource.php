@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\NormalizesNumbers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderDetailResource extends JsonResource
 {
+    use NormalizesNumbers;
+
     public function toArray(Request $request): array
     {
         return [
@@ -25,20 +28,29 @@ class OrderDetailResource extends JsonResource
             'payment_method'               => $this->payment_method,
             'payment_reference'            => $this->payment_reference,
             'payment_expires_at'           => $this->payment_expires_at?->toIso8601String(),
+            'qris'                         => [
+                'active'         => $this->metadata['qris_active'] ?? null,
+                'attempts_count' => is_array($this->metadata['qris_attempts'] ?? null)
+                    ? count($this->metadata['qris_attempts'])
+                    : 0,
+                'is_expired'     => $this->payment_status?->value === 'pending'
+                    && $this->payment_expires_at !== null
+                    && $this->payment_expires_at->isPast(),
+            ],
             // Customer
             'customer_name'                => $this->customer_name,
             'customer_phone'               => $this->customer_phone,
             // Financial
-            'subtotal_amount'              => $this->subtotal_amount,
-            'discount_amount'              => $this->discount_amount,
-            'tax_amount'                   => $this->tax_amount,
-            'service_charge_amount'        => $this->service_charge_amount,
-            'total_amount'                 => $this->total_amount,
-            'payment_amount'               => $this->payment_amount,
-            'change_amount'                => $this->change_amount,
+            'subtotal_amount'              => self::num($this->subtotal_amount),
+            'discount_amount'              => self::num($this->discount_amount),
+            'tax_amount'                   => self::num($this->tax_amount),
+            'service_charge_amount'        => self::num($this->service_charge_amount),
+            'total_amount'                 => self::num($this->total_amount),
+            'payment_amount'               => self::num($this->payment_amount),
+            'change_amount'                => self::num($this->change_amount),
             // Snapshot rates
-            'tax_rate_snapshot'            => $this->tax_rate_snapshot,
-            'service_charge_rate_snapshot' => $this->service_charge_rate_snapshot,
+            'tax_rate_snapshot'            => self::num($this->tax_rate_snapshot),
+            'service_charge_rate_snapshot' => self::num($this->service_charge_rate_snapshot),
             // Timestamps
             'note'         => $this->note,
             'opened_at'    => $this->opened_at?->toIso8601String(),

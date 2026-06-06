@@ -5,6 +5,7 @@ namespace App\Filament\Resources\QrisPayments\Tables;
 use App\Enums\BillStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Services\OrderQrisPaymentService;
 use App\Services\QrisService;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -82,18 +83,10 @@ class QrisPaymentsTable
                     )
                     ->action(function ($record, QrisService $qris) {
                         try {
-                            $result = $qris->check($record->payment_reference);
+                            $sync = app(OrderQrisPaymentService::class)->sync($record, $qris);
+                            $result = $sync['result'];
 
                             if ($result['paid']) {
-                                $record->update([
-                                    'payment_status' => PaymentStatus::Paid,
-                                    'payment_amount' => $record->total_amount,
-                                    'bill_status' => BillStatus::Closed,
-                                    'order_status' => OrderStatus::Completed,
-                                    'paid_at' => now(),
-                                    'closed_at' => now(),
-                                ]);
-                                
                                 Notification::make()
                                     ->title('Payment Paid')
                                     ->body("Payment for order {$record->order_number} has been paid.")
@@ -126,12 +119,7 @@ class QrisPaymentsTable
                     )
                     ->action(function ($record, QrisService $qris) {
                         try {
-                            $qris->cancel($record->payment_reference);
-                            
-                            $record->update([
-                                'payment_status' => PaymentStatus::Cancelled,
-                                'payment_reference' => null,
-                            ]);
+                            app(OrderQrisPaymentService::class)->cancel($record, $qris);
                             
                             Notification::make()
                                 ->title('Payment Cancelled')

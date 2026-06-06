@@ -68,11 +68,17 @@ class TableOrderFlowTest extends TestCase
         $mock = Mockery::mock(QrisService::class);
         $mock->shouldReceive('create')
             ->andReturn([
-                'qr_url'    => 'https://qris.example/qr.png',
-                'qr_string' => 'QR-STRING-DATA',
-                'order_id'  => 'santap-x',
+                'data' => [
+                    'actions'   => [['url' => 'https://qris.example/qr.png']],
+                    'qr_string' => 'QR-STRING-DATA',
+                ],
             ]);
-        $mock->shouldReceive('check')->andReturn(['status' => 'pending']);
+        $mock->shouldReceive('check')->andReturn([
+            'paid'               => false,
+            'status'             => 'pending',
+            'transaction_status' => 'pending',
+            'raw'                => [],
+        ]);
         $mock->shouldReceive('cancel')->andReturn(['status' => 'cancelled']);
         $this->app->instance(QrisService::class, $mock);
     }
@@ -225,7 +231,12 @@ class TableOrderFlowTest extends TestCase
     public function test_payment_status_marks_paid_when_provider_paid(): void
     {
         $mock = Mockery::mock(QrisService::class);
-        $mock->shouldReceive('check')->andReturn(['status' => 'paid']);
+        $mock->shouldReceive('check')->andReturn([
+            'paid'               => true,
+            'status'             => 'paid',
+            'transaction_status' => 'settlement',
+            'raw'                => [],
+        ]);
         $this->app->instance(QrisService::class, $mock);
 
         $order = $this->makeTableOrder();
@@ -252,7 +263,12 @@ class TableOrderFlowTest extends TestCase
     {
         $mock = Mockery::mock(QrisService::class);
         $mock->shouldReceive('cancel')->andReturn(['status' => 'cancelled']);
-        $mock->shouldReceive('check')->andReturn(['status' => 'pending']);
+        $mock->shouldReceive('check')->andReturn([
+            'paid'               => false,
+            'status'             => 'pending',
+            'transaction_status' => 'pending',
+            'raw'                => [],
+        ]);
         $this->app->instance(QrisService::class, $mock);
 
         $order = $this->makeTableOrder(expiresAt: now()->subMinute());
