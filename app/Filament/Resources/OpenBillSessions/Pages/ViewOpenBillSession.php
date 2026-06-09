@@ -37,7 +37,14 @@ class ViewOpenBillSession extends ViewRecord
             ->modalWidth('md')
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Tutup')
-            ->visible(fn (Order $record): bool => filled($record->public_token))
+            ->visible(fn (Order $record): bool => 
+                $record->order_type === \App\Enums\OrderType::OpenBill &&
+                $record->bill_status === \App\Enums\BillStatus::Open &&
+                $record->order_status !== \App\Enums\OrderStatus::Cancelled &&
+                $record->cancelled_at === null &&
+                $record->closed_at === null &&
+                filled($record->public_token)
+            )
             ->modalContent(fn (Order $record) => view(
                 'filament.open-bill-sessions.qr-modal',
                 [

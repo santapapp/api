@@ -66,7 +66,7 @@ class OrderActions
             ->visible(function (Order $record): bool {
                 $payments = app(OrderQrisPaymentService::class);
 
-                if ($record->payment_status === PaymentStatus::Paid || (float) $record->total_amount <= 0) {
+                if ($record->isCancelled() || $record->payment_status === PaymentStatus::Paid || $record->payment_status === PaymentStatus::Cancelled || (float) $record->total_amount <= 0) {
                     return false;
                 }
 
@@ -115,27 +115,17 @@ class OrderActions
             ])
             ->requiresConfirmation()
             ->action(function (array $data, Order $record): void {
-                if ($record->payment_status === PaymentStatus::Pending && $record->payment_reference) {
-                    try {
-                        app(OrderQrisPaymentService::class)->cancel($record, app(QrisService::class));
-                        $record->refresh();
-                    } catch (\Throwable) {
-                        // Pembatalan order tetap lanjut.
-                    }
+                if ($record->payment_status === PaymentStatus::Paid) {
+                    Notification::make()
+                        ->title('Gagal membatalkan pesanan')
+                        ->body("Pesanan yang sudah dibayar tidak dapat dibatalkan.")
+                        ->danger()
+                        ->send();
+
+                    return;
                 }
 
-                $payment = in_array($record->payment_status, [PaymentStatus::Pending, PaymentStatus::Unpaid], true)
-                    ? PaymentStatus::Cancelled
-                    : $record->payment_status;
-
-                $record->update([
-                    'order_status' => OrderStatus::Cancelled,
-                    'payment_status' => $payment,
-                    'cancel_reason' => $data['cancel_reason'],
-                    'cancelled_at' => now(),
-                ]);
-
-                $record->cancelItems();
+                app(\App\Services\OrderLifecycleService::class)->cancelOrder($record, auth()->user(), $data['cancel_reason']);
 
                 Notification::make()
                     ->title('Pesanan dibatalkan')
@@ -155,6 +145,16 @@ class OrderActions
             ->visible(fn (Order $record): bool => $record->payment_status !== PaymentStatus::Paid
                 && $record->order_status !== OrderStatus::Cancelled)
             ->action(function (Order $record): void {
+                if ($record->order_status === OrderStatus::Cancelled || $record->cancelled_at !== null) {
+                    Notification::make()
+                        ->title('Gagal menandai lunas')
+                        ->body("Pesanan yang sudah dibatal tidak dapat dibayar.")
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
                 if (! $record->payment_method) {
                     $record->update(['payment_method' => 'cash']);
                 }

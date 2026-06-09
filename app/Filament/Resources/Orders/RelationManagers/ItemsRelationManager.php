@@ -82,6 +82,14 @@ class ItemsRelationManager extends RelationManager
                     ->placeholder('-')
                     ->wrap(),
             ])
+            ->emptyStateHeading('Belum ada item pesanan')
+            ->emptyStateDescription(function (): string {
+                /** @var Order $order */
+                $order = $this->getOwnerRecord();
+                return $order->isCancelled() || $order->cancelled_at !== null
+                    ? 'Tidak ada item pada sesi yang dibatalkan ini.'
+                    : 'Customer atau kasir belum menambahkan item ke sesi ini.';
+            })
             ->filters([])
             ->headerActions([
                 Action::make('add_menu')

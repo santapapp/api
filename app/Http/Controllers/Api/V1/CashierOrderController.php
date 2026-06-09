@@ -23,6 +23,7 @@ use App\Services\OrderItemService;
 use App\Services\OrderQrisPaymentService;
 use App\Services\OrganizationContext;
 use App\Services\QrisService;
+use App\Services\OrderLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -94,6 +95,9 @@ class CashierOrderController extends Controller
             'public_token' => $isOpenBill ? Str::random(32) : null,
             'organization_id' => $orgId,
             'dining_table_id' => $tableId,
+            'order_marker_number' => $org->order_marker_mode !== 'disabled'
+                ? $request->order_marker_number
+                : null,
             'created_by' => $request->user()->id,
             'customer_name' => $request->customer_name,
             'customer_phone' => $request->customer_phone,
@@ -229,6 +233,10 @@ class CashierOrderController extends Controller
             return response()->json(['message' => 'Order sudah dibayar.'], 422);
         }
 
+        if ($order->order_status === OrderStatus::Cancelled || $order->cancelled_at !== null) {
+            return response()->json(['message' => 'Order yang sudah dibatal tidak dapat dibayar.'], 422);
+        }
+
         $amountReceived = (float) $request->amount_received;
         $totalAmount = (float) $order->total_amount;
         $change = round($amountReceived - $totalAmount, 2);
@@ -322,6 +330,10 @@ class CashierOrderController extends Controller
             return response()->json(['message' => 'Order sudah ditutup.'], 422);
         }
 
+        if ($order->order_status === OrderStatus::Cancelled || $order->cancelled_at !== null) {
+            return response()->json(['message' => 'Order yang sudah dibatal tidak dapat ditutup.'], 422);
+        }
+
         $order->update([
             'bill_status' => BillStatus::Closed,
             'order_status' => $order->order_status === OrderStatus::Cancelled
@@ -336,7 +348,7 @@ class CashierOrderController extends Controller
         ]);
     }
 
-    public function cancel(CancelOrderRequest $request, int $id): JsonResponse
+    public function cancel(CancelOrderRequest $request, int $id, OrderLifecycleService $lifecycle): JsonResponse
     {
         $this->assertSalesRole();
 
@@ -351,23 +363,7 @@ class CashierOrderController extends Controller
             return response()->json(['message' => 'Order yang sudah dibayar tidak dapat dibatalkan.'], 422);
         }
 
-        if ($order->payment_reference && $order->payment_status === PaymentStatus::Pending) {
-            try {
-                app(OrderQrisPaymentService::class)->cancel($order, app(QrisService::class));
-                $order->refresh();
-            } catch (\Throwable) {
-                // Pembatalan order tetap lanjut walau cancel provider gagal.
-            }
-        }
-
-        $order->update([
-            'order_status' => OrderStatus::Cancelled,
-            'payment_status' => PaymentStatus::Cancelled,
-            'payment_reference' => $order->payment_reference,
-            'cancelled_by' => $request->user()->id,
-            'cancel_reason' => $request->cancel_reason,
-            'cancelled_at' => now(),
-        ]);
+        $lifecycle->cancelOrder($order, $request->user(), $request->cancel_reason);
 
         return response()->json([
             'data' => new OrderResource($order->fresh()->load('diningTable', 'cancelledBy')),

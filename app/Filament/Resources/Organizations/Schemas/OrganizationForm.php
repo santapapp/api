@@ -165,6 +165,34 @@ class OrganizationForm
                             ->minValue(0)
                             ->maxValue(100)
                             ->visible(fn (Get $get): bool => (bool) $get('service_charge_enabled')),
+
+                        Select::make('order_marker_mode')
+                            ->label('Mode Nomor Penanda Pesanan')
+                            ->options([
+                                'disabled' => 'Nonaktif',
+                                'optional' => 'Opsional',
+                                'required' => 'Wajib',
+                            ])
+                            ->default('disabled')
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                if ($state === 'disabled') {
+                                    $set('order_marker_max_number', null);
+                                }
+                            })
+                            ->helperText('Gunakan jika outlet memakai nomor akrilik/table tent/penanda fisik. Berbeda dari data meja QR Santap.')
+                            ->columnSpanFull(),
+
+                        TextInput::make('order_marker_max_number')
+                            ->label('Maksimal Nomor Penanda Pesanan')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(9999)
+                            ->required(fn (Get $get): bool => in_array($get('order_marker_mode'), ['optional', 'required'], true))
+                            ->visible(fn (Get $get): bool => in_array($get('order_marker_mode'), ['optional', 'required'], true))
+                            ->placeholder('Contoh: 30')
+                            ->helperText('Nomor yang diizinkan: 1 sampai nilai ini.'),
                     ]),
 
                 // ── Section 5: Tambah User (hanya saat Create) ────────────

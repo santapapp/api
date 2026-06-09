@@ -24,6 +24,8 @@ class QrisPaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQrCode;
 
+    protected static \UnitEnum|string|null $navigationGroup = 'Pembayaran';
+
     protected static ?int $navigationSort = 6;
 
     public static function getEloquentQuery(): Builder

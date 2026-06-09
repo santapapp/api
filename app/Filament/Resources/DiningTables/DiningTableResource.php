@@ -20,6 +20,8 @@ class DiningTableResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
 
+    protected static \UnitEnum|string|null $navigationGroup = 'Operasional';
+
     protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'name';

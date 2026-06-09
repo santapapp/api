@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashierOrderController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\Customer\OrderReceiptController;
 use App\Http\Controllers\Api\V1\DiningTableController;
 use App\Http\Controllers\Api\V1\KitchenOrderController;
 use App\Http\Controllers\Api\V1\MenuController;
@@ -91,6 +92,8 @@ Route::prefix('customer')->as('customer.')->group(function (): void {
     Route::get('/orders/{order}/payment-status', [CustomerController::class, 'paymentStatus'])
         ->middleware('throttle:qris-check')
         ->name('public.order.payment-status');
+    Route::get('/orders/{order}/receipt/download', [OrderReceiptController::class, 'download'])
+        ->name('orders.receipt.download');
     Route::post('/order', [CustomerController::class, 'createOrder'])
         ->middleware('throttle:customer-order')
         ->name('order.create');

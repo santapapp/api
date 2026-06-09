@@ -46,6 +46,12 @@ class OrganizationResource extends JsonResource
             // JSON
             'opening_hours'          => $this->opening_hours,
             'settings'               => $this->settings,
+            // Nomor Penanda Pesanan — config untuk mobile app
+            'order_marker'           => [
+                'mode'       => $this->order_marker_mode ?? 'disabled',
+                'max_number' => $this->order_marker_max_number,
+                'label'      => 'Nomor Penanda Pesanan',
+            ],
             // Role saat diload via pivot
             'role'                   => $this->whenPivotLoaded('organization_members', fn () => $this->pivot->role),
         ];

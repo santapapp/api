@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\OpenBillSessions;
 
 use App\Enums\BillStatus;
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Filament\Resources\OpenBillSessions\Pages\ListOpenBillSessions;
 use App\Filament\Resources\OpenBillSessions\Pages\ViewOpenBillSession;
@@ -43,16 +44,21 @@ class OpenBillSessionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
+    protected static \UnitEnum|string|null $navigationGroup = 'Operasional';
+
     protected static ?int $navigationSort = 7;
 
     /**
-     * Base query: HANYA open bill yang masih terbuka.
+     * Base query: HANYA open bill yang masih terbuka dan tidak dibatalkan.
      */
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
             ->where('order_type', OrderType::OpenBill)
-            ->where('bill_status', BillStatus::Open);
+            ->where('bill_status', BillStatus::Open)
+            ->where('order_status', '!=', OrderStatus::Cancelled)
+            ->whereNull('cancelled_at')
+            ->whereNull('closed_at');
     }
 
     public static function table(Table $table): Table

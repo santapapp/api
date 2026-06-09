@@ -16,14 +16,6 @@ class ListOpenBillSessions extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-            Action::make('create_open_bill')
-                ->label('Buat Open Bill')
-                ->icon('heroicon-o-receipt-percent')
-                ->color('warning')
-                ->url(OrderResource::getUrl('create', [
-                    'order_type' => OrderType::OpenBill->value,
-                ])),
-        ];
+        return [];
     }
 }

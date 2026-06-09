@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\BillStatus;
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -28,11 +29,14 @@ class EnsureCustomerToken
         $order = Order::where('public_token', $token)
             ->where('order_type', OrderType::OpenBill)
             ->where('bill_status', BillStatus::Open)
+            ->where('order_status', '!=', OrderStatus::Cancelled)
+            ->whereNull('cancelled_at')
+            ->whereNull('closed_at')
             ->first();
 
         if (! $order) {
             return response()->json([
-                'message' => 'Sesi tidak valid atau sudah berakhir.',
+                'message' => 'Sesi open bill tidak valid atau sudah berakhir.',
             ], 403);
         }
 

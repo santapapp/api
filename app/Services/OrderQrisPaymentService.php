@@ -134,7 +134,10 @@ class OrderQrisPaymentService
             ]);
         }
 
-        if ($order->bill_status === BillStatus::Closed || $order->order_status->value === 'cancelled') {
+        $isCancelled = $order->order_status === \App\Enums\OrderStatus::Cancelled || $order->cancelled_at !== null;
+        $isClosed = $order->bill_status === BillStatus::Closed || $order->closed_at !== null;
+
+        if ($isCancelled || $isClosed) {
             throw ValidationException::withMessages([
                 'items' => 'Item tidak bisa diubah karena bill sudah ditutup atau order dibatalkan.',
             ]);
@@ -204,6 +207,12 @@ class OrderQrisPaymentService
             ]);
         }
 
+        if ($order->order_status === \App\Enums\OrderStatus::Cancelled || $order->cancelled_at !== null) {
+            throw ValidationException::withMessages([
+                'payment' => 'QRIS tidak bisa dibuat karena order sudah dibatalkan.',
+            ]);
+        }
+
         if ((float) $order->total_amount <= 0) {
             throw ValidationException::withMessages([
                 'payment' => 'QRIS tidak bisa dibuat karena total tagihan masih 0.',
@@ -216,7 +225,7 @@ class OrderQrisPaymentService
             ]);
         }
 
-        if ($order->bill_status === BillStatus::Closed) {
+        if ($order->bill_status === BillStatus::Closed || $order->closed_at !== null) {
             throw ValidationException::withMessages([
                 'payment' => 'QRIS tidak bisa dibuat karena bill sudah ditutup.',
             ]);

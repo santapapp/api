@@ -20,10 +20,11 @@ class OrderResource extends JsonResource
         return [
             'id'                           => $this->id,
             'order_number'                 => $this->order_number,
-            'order_type'                   => $this->order_type,
-            'bill_status'                  => $this->bill_status,
-            'order_status'                 => $this->order_status,
-            'payment_status'               => $this->payment_status,
+            // Enum fields di-serialize sebagai string value secara eksplisit.
+            'order_type'                   => $this->order_type?->value,
+            'bill_status'                  => $this->bill_status?->value,
+            'order_status'                 => $this->order_status?->value,
+            'payment_status'               => $this->payment_status?->value,
             'payment_method'               => $this->payment_method,
             'payment_reference'            => $this->payment_reference,
             'qris'                         => [
@@ -38,6 +39,8 @@ class OrderResource extends JsonResource
             // Customer
             'customer_name'                => $this->customer_name,
             'customer_phone'               => $this->customer_phone,
+            // Nomor Penanda Pesanan
+            'order_marker_number'          => $this->order_marker_number,
             // Financial
             'subtotal_amount'              => self::num($this->subtotal_amount),
             'discount_amount'              => self::num($this->discount_amount),

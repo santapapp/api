@@ -54,14 +54,23 @@ class AppServiceProvider extends ServiceProvider
 
                     **Gambar/media:** field `image` (menu), `logo`/`banner` (organisasi), dan `avatar` (profil) berisi **URL string** ke gambar pada response. Untuk meng-unggah file, tersedia endpoint upload khusus (`multipart/form-data`): `POST /v1/auth/profile/avatar`, `POST /v1/menus/{id}/image`, `POST /v1/organizations/current/logo`, dan `POST /v1/organizations/current/banner` — kirim field file (jpeg/png/webp, maks 2 MB); gambar lama otomatis diganti dan response mengembalikan resource dengan URL gambar terbaru.
 
-                    **Open bill & QRIS kasir/owner:**
-                    - Endpoint aktif memakai `/v1/cashier/orders`. Role `kitchen` tidak boleh mutasi item/payment open bill.
-                    - `POST /v1/cashier/orders/{id}/pay-qris` mengunci order terkait saja. Jika order yang sama masih punya QRIS pending aktif, API mengembalikan QRIS existing; order lain tetap bisa membuat QRIS masing-masing.
-                    - QRIS hanya bisa dibuat saat total > 0. Selama QRIS pending/paid, item tidak bisa ditambah, diubah, atau dihapus. Cancel QRIS atau tunggu expired lalu regenerate.
-                    - Expired adalah derived state dari `payment_expires_at` dan/atau status provider. Attempt lama disimpan ringkas di `orders.metadata.qris_attempts[]`; attempt aktif di `orders.metadata.qris_active`.
-                    - Payload item kanonik memakai `selected_options[{group_id, option_id}]`; `selected_variants[{variant_group_id, variant_id}]` tetap didukung untuk backward compatibility.
+                    **Konsep Sesi Open Bill:**
+                    - Open Bill adalah sesi order meja yang diinisiasi oleh staff/kasir dari mobile app (bukan dibuat langsung oleh pelanggan di customer web).
+                    - Begitu Open Bill dibuat, API menghasilkan data order dengan `order_type = open_bill`, status sesi awal `bill_status = open`, status order `order_status = pending`, status pembayaran `payment_status = unpaid`, dan `public_token` unik untuk QR session.
+                    - QR session ini bisa discan pelanggan untuk masuk ke sesi open bill aktif (`EnsureCustomerToken` middleware memverifikasi status `bill_status = open` dan order tidak dibatalkan).
+                    - Selama sesi aktif (`bill_status = open`), pelanggan diperbolehkan menambah item. Item yang ditambahkan otomatis memajukan status order menjadi `confirmed` dan langsung masuk antrian dapur (`v1/kitchen/orders`) untuk dimasak tanpa harus bayar dulu.
+                    - Pembayaran diselesaikan di akhir. Setelah lunas (tunai/QRIS) atau ditutup secara manual oleh kasir, status bill menjadi `bill_status = closed` dan sesi berakhir. Jika open bill dibatalkan, status order & payment diset `cancelled`, status bill diset `closed`, dan sesi customer otomatis tidak aktif/valid lagi.
 
-                    **Format error:** semua error mengembalikan JSON `{ "message": string }`; error validasi (422) menambahkan `{ "errors": { field: [pesan] } }`.
+                    **Siklus Hidup Status Open Bill:**
+                    - **A. Saat Dibuat:** `order_type = open_bill`, `bill_status = open`, `order_status = pending`, `payment_status = unpaid`, `opened_at = now()`.
+                    - **B. Saat Item Ditambahkan:** `bill_status = open`, `order_status` minimal `confirmed`, `payment_status` tetap `unpaid` atau `pending` (saat checkout).
+                    - **C. Saat Sukses Bayar:** `payment_status = paid`, `bill_status = closed`, `paid_at = now()`, `closed_at = now()`.
+                    - **D. Saat Dibatalkan:** `order_status = cancelled`, `payment_status = cancelled`, `bill_status = closed`, `cancelled_at = now()`, `closed_at = now()`.
+                    - **E. Saat QRIS Attempt Dibatalkan:** `payment_status = cancelled` (atau `failed`), reference dibersihkan, namun `bill_status` tetap `open` dan `order_status` **TIDAK** menjadi `cancelled` (pelanggan masih bisa lanjut sesi/order item).
+
+                    **QRIS & Mutasi Item:**
+                    - `POST /v1/cashier/orders/{id}/pay-qris` mengunci order terkait saja. Jika order yang sama masih punya QRIS pending aktif, API mengembalikan QRIS existing.
+                    - QRIS hanya bisa dibuat saat total > 0. Selama QRIS pending, penambahan/perubahan item diblokir.
                     MD,
                 'version'     => '1.0.0',
             ],
@@ -151,15 +160,22 @@ class AppServiceProvider extends ServiceProvider
                 'description' => <<<'MD'
                     API publik tanpa login untuk pelanggan di meja (Nuxt web app).
 
-                    **Alur pembayaran & polling (QRIS):**
-                    - Status pembayaran disinkronkan dari gateway Sekeco/Midtrans — *gateway adalah source of truth*. Frontend cukup membaca status dari API ini, bukan memutuskan sendiri.
-                    - Order pending punya `payment_expires_at` (now + 15 menit). Gunakan bersama `server_time` untuk countdown yang akurat (hitung offset waktu server↔klien).
-                    - Polling status table order: `GET /v1/customer/orders/{order}/payment-status`. Endpoint ini cek provider lebih dulu, baru memutuskan paid/expired — idempotent, dan bisa merekonsiliasi order yang terlanjur cancelled jika ternyata sudah dibayar.
-                    - Timeout lokal TIDAK pernah membatalkan order sebelum sinkronisasi final ke gateway.
-                    - Open bill memakai service QRIS yang sama dengan cashier: duplicate QRIS dibatasi per order, bukan per organisasi/meja/provider. Jika order yang sama masih pending aktif, endpoint mengembalikan QRIS existing.
-                    - Selama QRIS open bill pending/paid, tambah item ditolak. Cancel QRIS atau tunggu expired lalu regenerate.
-                    - Payload item kanonik memakai `selected_options[{group_id, option_id}]`; `selected_variants[{variant_group_id, variant_id}]` tetap didukung untuk backward compatibility.
-                    - Attempt QRIS open bill disimpan ringkas di `orders.metadata.qris_active` dan `orders.metadata.qris_attempts[]`, tanpa raw provider response penuh.
+                    **Akses Sesi Open Bill:**
+                    - Pelanggan **TIDAK** membuat open bill secara langsung. Sesi open bill harus dibuat terlebih dahulu oleh kasir/staff di mobile app POS.
+                    - Pelanggan men-scan QR code meja yang berisi link sesi (`/o/{slug}/orders?bill={public_token}`).
+                    - Token `public_token` dikirimkan oleh browser customer lewat header `X-Public-Token`.
+                    - Middleware `EnsureCustomerToken` memvalidasi token ini. Token dianggap valid jika dan hanya jika:
+                      * `order_type = open_bill`
+                      * `bill_status = open`
+                      * `order_status != cancelled`
+                      * `cancelled_at IS NULL` dan `closed_at IS NULL`
+                    - Jika tidak memenuhi kriteria di atas, server mengembalikan error `403 Forbidden` dengan pesan `"Sesi open bill tidak valid atau sudah berakhir."`.
+
+                    **Siklus Hidup & Alur Kerja:**
+                    - **Tambah Item:** Selama sesi aktif, customer bebas menambah item lewat `POST /v1/customer/order/items`. Item akan langsung terkirim ke dapur untuk dimasak tanpa perlu membayar di awal.
+                    - **Kunci Pembayaran (QRIS):** Saat melakukan checkout/payment QRIS (`POST /v1/customer/order/pay-qris`), status pembayaran menjadi `pending` dan item dikunci (tidak bisa ditambah/diubah/dihapus) untuk mencegah ketidaksesuaian nominal.
+                    - **Cancel QRIS Attempt vs Cancel Open Bill:** Jika pelanggan membatalkan QRIS attempt (`DELETE /v1/customer/order/qris-cancel`), status pembayaran diset `cancelled` tapi sesi open bill tetap `open` dan `order_status` **TIDAK** dibatalkan (customer bisa memesan lagi atau generate QRIS baru).
+                    - **Pelunasan:** Setelah QRIS sukses terbayar (settlement), status pembayaran otomatis disinkronkan, status pembayaran menjadi `paid`, status bill menjadi `closed`, dan sesi berakhir.
                     MD,
                 'version'     => '1.0.0',
             ],
@@ -189,7 +205,7 @@ class AppServiceProvider extends ServiceProvider
 
             if ($hasCustomerToken) {
                 $this->addApiError($operation, 401, 'Header X-Public-Token tidak disertakan.');
-                $this->addApiError($operation, 403, 'Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).');
+                $this->addApiError($operation, 403, 'Sesi open bill tidak valid atau sudah berakhir (karena status bill closed atau order cancelled).');
             } elseif ($hasPathParams) {
                 $this->addApiError($operation, 404, 'Order atau resource tidak ditemukan.');
             }
@@ -200,6 +216,7 @@ class AppServiceProvider extends ServiceProvider
             $tag = match (true) {
                 $hasCustomerToken                               => 'Customer Open Bill',
                 Str::contains($uri, 'payment-status')           => 'Customer Payment',
+                Str::contains($uri, 'receipt/download')         => 'Customer Receipt',
                 Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
                 Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
                 Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
@@ -228,17 +245,12 @@ class AppServiceProvider extends ServiceProvider
                 'description' => <<<'MD'
                     Dokumentasi **lengkap** seluruh endpoint Santap (staff/owner, kasir, dapur, dan pelanggan) dalam satu tempat — untuk admin/superadmin dashboard.
 
-                    **Autentikasi staff/owner:** `Authorization: Bearer <token>` (dari `POST /v1/auth/login`); endpoint scoped organisasi wajib menyertakan header `X-Org-ID`.
-
-                    **Autentikasi pelanggan (open bill):** header `X-Public-Token` (dari scan QR meja). Endpoint table order publik tidak butuh token.
-
-                    **Upload media (`multipart/form-data`):** `POST /v1/auth/profile/avatar`, `POST /v1/menus/{id}/image`, `POST /v1/organizations/current/logo`, `POST /v1/organizations/current/banner` — field file jpeg/png/webp maks 2 MB; gambar lama otomatis diganti, response mengembalikan URL gambar terbaru.
-
-                    **Open bill & QRIS:** flow staff aktif berada di `/v1/cashier/orders`, sedangkan flow pelanggan open bill berada di `/v1/customer/order/*` dengan `X-Public-Token`. Duplicate QRIS dibatasi per order saja. Saat order yang sama masih punya QRIS pending aktif, API mengembalikan QRIS existing; order lain tetap bisa membuat QRIS. Attempt QRIS lama diarsipkan ringkas ke `orders.metadata.qris_attempts[]`.
-
-                    **Payload item:** gunakan `selected_options[{group_id, option_id}]` untuk variant/addon berdasarkan tree menu organisasi yang sama. `selected_variants[{variant_group_id, variant_id}]` masih diterima sebagai legacy payload.
-
-                    **Format error:** JSON `{ "message": string }`; validasi (422) menambah `{ "errors": { field: [pesan] } }`.
+                    **Struktur Sesi Open Bill:**
+                    - Open Bill dibuat oleh cashier/mobile app (`order_type = open_bill`, `bill_status = open`).
+                    - Customer mengakses via QR session menggunakan `public_token` yang disuplai di header `X-Public-Token`.
+                    - Halaman admin memantau riwayat sesi open bill aktif (`bill_status = open` dan `order_status != cancelled`).
+                    - Ketika open bill dibatalkan (baik via API cashier maupun aksi di Filament backoffice), status order dan payment diset `cancelled`, status bill ditutup (`bill_status = closed`), dan sesi customer diblokir secara real-time.
+                    - Detail siklus hidup status, alur QRIS, dan payload item sama dengan dokumentasi pada group Mobile dan Web Customer.
                     MD,
                 'version'     => '1.0.0',
             ],
@@ -304,7 +316,7 @@ class AppServiceProvider extends ServiceProvider
                 $this->addApiError($operation, 404, 'Organisasi atau resource (mis. menu/meja/order pada {id}) tidak ditemukan.');
             } elseif ($hasCustomerToken) {
                 $this->addApiError($operation, 401, 'Header X-Public-Token tidak disertakan.');
-                $this->addApiError($operation, 403, 'Sesi open bill tidak valid / sudah berakhir, atau waktu pembayaran sudah habis (response sertakan `status` & `can_retry`).');
+                $this->addApiError($operation, 403, 'Sesi open bill tidak valid atau sudah berakhir (karena status bill closed atau order cancelled).');
             } elseif ($hasPathParams) {
                 $this->addApiError($operation, 404, 'Resource tidak ditemukan.');
             }
@@ -314,6 +326,7 @@ class AppServiceProvider extends ServiceProvider
                 $tag = match (true) {
                     $hasCustomerToken                               => 'Customer Open Bill',
                     Str::contains($uri, 'payment-status')           => 'Customer Payment',
+                    Str::contains($uri, 'receipt/download')         => 'Customer Receipt',
                     Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
                     Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
                     Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
@@ -379,15 +392,196 @@ class AppServiceProvider extends ServiceProvider
         $method = strtolower($operation->method);
 
         [$summary, $description, $validationError] = match (true) {
+
+            // ── Auth ─────────────────────────────────────────────────────────
+            $uri === 'v1/auth/login' && $method === 'post' => [
+                'Login staff',
+                'Autentikasi staff (owner / cashier / kitchen). Response menyertakan data user, daftar organisasi beserta `role` per organisasi, dan Bearer token. ' .
+                'Masukkan token ke tombol **Authorize** sebagai Bearer Token untuk mengakses endpoint lain. ' .
+                'Token tidak memiliki masa berlaku bawaan — gunakan `POST /v1/auth/logout` untuk mencabutnya.',
+                'Email atau password salah.',
+            ],
+            $uri === 'v1/auth/logout' && $method === 'post' => [
+                'Logout staff',
+                'Mencabut (revoke) Bearer token yang sedang dipakai. Setelah logout, token tidak bisa dipakai lagi. ' .
+                'Untuk multi-device logout, lakukan request dari masing-masing perangkat atau hapus semua token via Filament admin.',
+                null,
+            ],
+            $uri === 'v1/auth/me' && $method === 'get' => [
+                'Get current user profile',
+                'Mengembalikan data user yang sedang login beserta daftar organisasi dan `role`-nya (owner/cashier/kitchen) dari tabel `organization_members`.',
+                null,
+            ],
+            $uri === 'v1/auth/profile' && $method === 'put' => [
+                'Update user profile',
+                'Update data profil user yang sedang login: nama, nomor telepon, dan/atau avatar URL. ' .
+                'Untuk upload file avatar, gunakan endpoint terpisah `POST /v1/auth/profile/avatar`.',
+                'Field tidak valid (mis. email duplikat, format telepon salah).',
+            ],
+            $uri === 'v1/auth/profile/avatar' && $method === 'post' => [
+                'Upload user avatar',
+                'Upload foto profil user (multipart/form-data). Field file: `avatar` (jpeg/jpg/png/webp, maks 2 MB). ' .
+                'File lama otomatis dihapus dari storage. Response berisi data user terbaru dengan field `avatar` berisi URL siap pakai.',
+                'File tidak ada, bukan gambar, atau ukuran > 2 MB.',
+            ],
+
+            // ── Organization ──────────────────────────────────────────────────
+            $uri === 'v1/organizations' && $method === 'get' => [
+                'List my organizations',
+                'Mengembalikan semua organisasi yang diikuti user yang sedang login. ' .
+                'Setiap item menyertakan field `role` (owner/cashier/kitchen) yang menunjukkan peran user pada organisasi tersebut.',
+                null,
+            ],
+            $uri === 'v1/organizations' && $method === 'post' => [
+                'Create organization',
+                'Membuat organisasi baru. User pembuat otomatis menjadi `owner` dari organisasi yang dibuat. ' .
+                '`slug` harus unik dan hanya boleh mengandung huruf kecil, angka, dan tanda hubung.',
+                'Nama atau slug tidak valid, atau slug sudah dipakai organisasi lain.',
+            ],
+            $uri === 'v1/organizations/current' && $method === 'get' => [
+                'Get current organization',
+                'Mengambil detail organisasi aktif berdasarkan header `X-Org-ID`. ' .
+                'Response menyertakan konfigurasi lengkap termasuk pajak, service charge, dan field `order_marker` untuk fitur Nomor Penanda Pesanan: ' .
+                '`mode` (disabled/optional/required), `max_number` (batas atas nomor yang diizinkan), dan `label`.',
+                null,
+            ],
+            $uri === 'v1/organizations/current' && $method === 'put' => [
+                'Update organization settings',
+                'Update pengaturan organisasi aktif. Hanya member dengan role `owner` yang diizinkan.' . "\n\n" .
+                '**Nomor Penanda Pesanan:** Atur via field `order_marker_mode` (`disabled`/`optional`/`required`) dan `order_marker_max_number` (integer, min 1, maks 9999). ' .
+                'Jika `order_marker_mode` diset ke `disabled`, `order_marker_max_number` dikosongkan otomatis.' . "\n\n" .
+                '**Gambar:** Gunakan endpoint upload khusus (`POST /logo`, `POST /banner`) — field ini menerima URL string, bukan file.',
+                'Field tidak valid, atau Anda bukan owner organisasi ini.',
+            ],
+            $uri === 'v1/organizations/current/logo' && $method === 'post' => [
+                'Upload organization logo',
+                'Upload logo organisasi aktif (multipart/form-data). Hanya owner. ' .
+                'Field file: `logo` (jpeg/jpg/png/webp, maks 2 MB). Logo lama otomatis dihapus dari storage.',
+                'File tidak ada, bukan gambar, ukuran > 2 MB, atau Anda bukan owner.',
+            ],
+            $uri === 'v1/organizations/current/banner' && $method === 'post' => [
+                'Upload organization banner',
+                'Upload banner/foto sampul organisasi aktif (multipart/form-data). Hanya owner. ' .
+                'Field file: `banner` (jpeg/jpg/png/webp, maks 2 MB). Banner lama otomatis dihapus dari storage.',
+                'File tidak ada, bukan gambar, ukuran > 2 MB, atau Anda bukan owner.',
+            ],
+
+            // ── Dining Table ──────────────────────────────────────────────────
+            $uri === 'v1/dining-tables' && $method === 'get' => [
+                'List dining tables',
+                'Mengembalikan semua meja organisasi aktif diurutkan berdasarkan nama. ' .
+                'Setiap meja menyertakan `qr_token` yang dipakai customer untuk mengakses menu via QR code. ' .
+                'Endpoint ini **berbeda** dari fitur Nomor Penanda Pesanan (`order_marker_number`) — `dining_tables` adalah data master meja fisik.',
+                null,
+            ],
+            $uri === 'v1/dining-tables' && $method === 'post' => [
+                'Create dining table',
+                'Membuat meja baru. `qr_token` digenerate otomatis (32 karakter random). ' .
+                'URL QR untuk customer: `{APP_URL}/t/{qr_token}`. ' .
+                'Gunakan `POST /{id}/regenerate-qr` untuk mereset QR token jika diperlukan.',
+                'Field tidak valid atau nama/kode meja sudah dipakai di organisasi ini.',
+            ],
+            $uri === 'v1/dining-tables/{id}' && $method === 'put' => [
+                'Update dining table',
+                'Update data meja (nama, kode, kapasitas, lokasi, status aktif). QR token tidak berubah saat update biasa — gunakan `POST /{id}/regenerate-qr` untuk mereset QR.',
+                'Field tidak valid atau meja tidak ditemukan.',
+            ],
+            $uri === 'v1/dining-tables/{id}' && $method === 'delete' => [
+                'Delete dining table',
+                'Menghapus meja dari organisasi. Hati-hati: order yang sudah ada dengan `dining_table_id` ini tidak ikut terhapus (relasi di-nullify atau dipertahankan sesuai constraint).',
+                null,
+            ],
+            $uri === 'v1/dining-tables/{id}/regenerate-qr' && $method === 'post' => [
+                'Regenerate QR token',
+                'Mereset `qr_token` meja dengan token baru (32 karakter random). Token lama otomatis tidak berlaku — semua link QR lama yang sudah dicetak tidak akan berfungsi lagi. ' .
+                'Gunakan ini jika QR code bocor atau meja berpindah tempat.',
+                null,
+            ],
+
+            // ── Menu ──────────────────────────────────────────────────────────
+            $uri === 'v1/menus' && $method === 'get' => [
+                'List menus (tree)',
+                'Mengembalikan semua produk beserta variant/addon dalam struktur tree 2 level. ' .
+                'Struktur: `product` → `variant_group`/`addon_group` → `variant`/`addon`. ' .
+                'Urutan berdasarkan `sort_order`. Hanya produk root (`type = product`) yang dikembalikan sebagai root item — children di-load via eager loading.',
+                null,
+            ],
+            $uri === 'v1/menus' && $method === 'post' => [
+                'Create menu item',
+                'Membuat menu baru. Hierarki yang diizinkan:' . "\n" .
+                '- `product` → tidak boleh punya parent' . "\n" .
+                '- `variant_group` / `addon_group` → parent harus `product`' . "\n" .
+                '- `variant` → parent harus `variant_group`' . "\n" .
+                '- `addon` → parent harus `addon_group`' . "\n\n" .
+                'Field `is_required`, `min_select`, `max_select` hanya relevan untuk grup (variant_group/addon_group). ' .
+                'Untuk upload gambar, gunakan `POST /v1/menus/{id}/image` setelah menu dibuat.',
+                'Tipe tidak valid, hierarki parent-child tidak sesuai, atau parent bukan milik organisasi ini.',
+            ],
+            $uri === 'v1/menus/{id}' && $method === 'put' => [
+                'Update menu item',
+                'Update data menu (nama, harga, deskripsi, SKU, sort order, ketersediaan, dll). ' .
+                'Response menyertakan children 2 level. Untuk pindah parent atau ganti gambar, gunakan endpoint terpisah.',
+                'Field tidak valid atau menu tidak ditemukan di organisasi ini.',
+            ],
+            $uri === 'v1/menus/{id}' && $method === 'delete' => [
+                'Delete menu item',
+                'Menghapus menu beserta seluruh children-nya secara cascade (via foreign key). ' .
+                'Menghapus `product` akan otomatis menghapus semua `variant_group`, `addon_group`, `variant`, dan `addon` di bawahnya.',
+                null,
+            ],
+            $uri === 'v1/menus/{id}/image' && $method === 'post' => [
+                'Upload menu image',
+                'Upload gambar produk (multipart/form-data). Field file: `image` (jpeg/jpg/png/webp, maks 2 MB). ' .
+                'Gambar lama otomatis dihapus dari storage. Response berisi data menu terbaru dengan field `image` berisi URL siap pakai.',
+                'File tidak ada, bukan gambar, atau ukuran > 2 MB.',
+            ],
+            $uri === 'v1/menus/{id}/toggle' && $method === 'patch' => [
+                'Toggle menu availability',
+                'Toggle ketersediaan menu (`is_available`) antara aktif dan nonaktif. ' .
+                'Menu yang nonaktif tidak akan muncul di halaman pelanggan (`GET /v1/customer/menu`). ' .
+                'Idempotent — bisa dipanggil berulang untuk flip status.',
+                null,
+            ],
+
+            // ── Kitchen ───────────────────────────────────────────────────────
+            $uri === 'v1/kitchen/orders' && $method === 'get' => [
+                'Kitchen order queue',
+                'Antrian order untuk layar dapur. Mengembalikan order dengan `order_status` `confirmed` atau `preparing`, ' .
+                'diurutkan berdasarkan waktu masuk (FIFO). Cocok untuk polling layar dapur setiap beberapa detik. ' .
+                'Setiap order menyertakan item dan data meja.',
+                null,
+            ],
+            $uri === 'v1/kitchen/order-items/{id}/status' && $method === 'patch' => [
+                'Update order item status',
+                'Update status satu item order dari dapur. Nilai `item_status` yang valid: `preparing`, `ready`, `served`, `cancelled`.' . "\n\n" .
+                '**Item-driven status rollup:** setelah item diupdate, `order_status` parent diturunkan otomatis dari agregat semua item:' . "\n" .
+                '- Semua `served` → `completed`' . "\n" .
+                '- Semua `ready` → `ready`' . "\n" .
+                '- Ada yang `preparing` → `preparing`' . "\n" .
+                '- Sisanya → `confirmed`',
+                'Item tidak ditemukan atau status tidak valid.',
+            ],
+
+            // ── Cashier ───────────────────────────────────────────────────────
             $uri === 'v1/cashier/orders' && $method === 'get' => [
                 'List cashier/open bill orders',
                 'Mengambil order hari ini dalam organisasi aktif. Filter `order_type=open_bill&bill_status=open` untuk daftar open bill aktif.',
                 null,
             ],
             $uri === 'v1/cashier/orders' && $method === 'post' => [
+
                 'Create cashier/open bill order',
-                'Membuat order kasir atau open bill. Untuk open bill, meja harus milik organisasi aktif dan tidak boleh sudah memiliki open bill aktif.',
-                'Meja tidak valid atau sudah memiliki open bill aktif.',
+                'Membuat order kasir atau open bill. Untuk open bill, pastikan menyuplai body request: ' . "\n" .
+                '`{ "order_type": "open_bill", "dining_table_id": 1, "customer_name": "Ilham", "customer_phone": "087xxxx", "note": "Opsional" }`. ' . "\n" .
+                'API akan menghasilkan order dengan `bill_status = open` dan `public_token` sebagai penanda QR Session bagi customer.' . "\n\n" .
+                '**Nomor Penanda Pesanan (`order_marker_number`):** Field integer opsional untuk nomor fisik (akrilik, table tent, nomor panggilan). ' .
+                'Perilaku bergantung pada `order_marker_mode` di konfigurasi organisasi: ' .
+                '`disabled` — field diabaikan (disimpan null); ' .
+                '`optional` — boleh diisi angka 1 s.d. `order_marker_max_number`; ' .
+                '`required` — wajib diisi. ' .
+                'Baca konfigurasi dari `GET /v1/organizations/current` → field `order_marker`. ' .
+                'Field ini **tidak berhubungan** dengan `dining_table_id` dan tidak ada master data nomor di database.',
+                'Meja tidak valid, meja sudah memiliki open bill aktif, atau `order_marker_number` tidak sesuai aturan konfigurasi organisasi.',
             ],
             $uri === 'v1/cashier/orders/{id}' && $method === 'get' => [
                 'Show cashier/open bill order',
@@ -431,12 +625,18 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/cashier/orders/{id}/close' && $method === 'post' => [
                 'Close bill',
-                'Menutup bill tanpa memaksa status kitchen menjadi completed. Gunakan setelah alur pembayaran/kitchen sesuai kebutuhan operasional.',
+                'Menutup bill secara manual untuk tipe open_bill (bill_status = closed, closed_at = now). Sesi berakhir sehingga QR session tidak valid lagi, tetapi order tidak dibatalkan (order_status tidak berubah menjadi cancelled).',
                 'Order sudah ditutup atau state order tidak valid.',
+            ],
+            $uri === 'v1/cashier/orders/{id}/confirm' && $method === 'post' => [
+                'Confirm order',
+                'Memajukan order dari status `pending` ke `confirmed`. Setelah dikonfirmasi, item masuk antrian dapur (`GET /v1/kitchen/orders`). ' .
+                'Tidak bisa dilakukan jika order sudah bukan `pending`.',
+                'Order tidak dalam status pending.',
             ],
             $uri === 'v1/cashier/orders/{id}/cancel' && $method === 'post' => [
                 'Cancel order',
-                'Membatalkan order yang belum paid/completed. Jika ada QRIS pending, sistem mencoba cancel provider dan mengarsipkan attempt sebelum order dicancel.',
+                'Membatalkan order yang belum paid/completed. Jika ada QRIS pending, sistem mencoba cancel provider dan mengarsipkan attempt sebelum order dicancel. Khusus tipe open_bill, pembatalan order ini akan otomatis menutup sesi bill (bill_status = closed, closed_at = now) sehingga QR session tidak valid lagi dan customer tidak bisa menambah item.',
                 'Order sudah paid/completed/cancelled atau alasan cancel tidak valid.',
             ],
             default => [null, null, null],
@@ -454,6 +654,28 @@ class AppServiceProvider extends ServiceProvider
         $method = strtolower($operation->method);
 
         [$summary, $description, $validationError] = match (true) {
+            // ── Customer Public ────────────────────────────────────────────────
+            $uri === 'v1/customer/organization/{slug}' && $method === 'get' => [
+                'Get organization info by slug',
+                'Mengambil informasi publik organisasi berdasarkan `slug`. Dipakai customer web untuk menampilkan nama, logo, dan konfigurasi restoran sebelum meja di-scan. ' .
+                'Response berisi field `order_marker` yang memuat mode Nomor Penanda Pesanan. Tidak memerlukan autentikasi.',
+                'Organisasi dengan slug tersebut tidak ditemukan atau tidak aktif.',
+            ],
+            $uri === 'v1/customer/table/{qrToken}' && $method === 'get' => [
+                'Scan QR table',
+                'Memvalidasi QR token meja dan mengembalikan informasi meja beserta menu restoran. Dipakai customer web/mobile saat memindai QR code di meja. ' .
+                'Jika meja memiliki open bill aktif (`bill_status = open`), response menyertakan `public_token` untuk dipakai di endpoint open bill. ' .
+                'Tidak memerlukan autentikasi.',
+                'QR token tidak valid, meja tidak aktif, atau meja tidak ditemukan.',
+            ],
+            $uri === 'v1/customer/menu' && $method === 'get' => [
+                'Get public menu',
+                'Mengambil daftar menu yang tersedia untuk customer berdasarkan organisasi dari QR token meja. ' .
+                'Hanya menampilkan menu dengan `is_available = true` dalam struktur tree (product → variant/addon). Tidak memerlukan autentikasi.',
+                null,
+            ],
+
+            // ── Customer Table Order & Open Bill ──────────────────────────────
             $uri === 'v1/customer/order' && $method === 'post' => [
                 'Create table order with QRIS',
                 'Checkout table order publik. Order dan QRIS dibuat atomik dalam satu transaksi; jika create QRIS gagal, order dan item di-rollback. Gunakan `selected_options` untuk variant/addon; `selected_variants` tetap legacy.',
@@ -471,28 +693,36 @@ class AppServiceProvider extends ServiceProvider
             ],
             $hasCustomerToken && $uri === 'v1/customer/order' && $method === 'get' => [
                 'Show active open bill',
-                'Mengambil open bill aktif dari `X-Public-Token`, termasuk item dan metadata QRIS ringkas.',
+                'Mengambil open bill aktif berdasarkan header `X-Public-Token: {public_token}` yang dikirim customer. Menyertakan detail item dan status.',
                 null,
             ],
             $uri === 'v1/customer/order/items' && $method === 'post' => [
                 'Add items to active open bill',
-                'Menambah item ke open bill aktif. Gunakan `selected_options[{group_id, option_id}]` untuk variant/addon; `selected_variants` tetap diterima sebagai legacy payload. Pending/paid QRIS memblokir tambah item.',
-                'Item tidak bisa ditambahkan saat QRIS pending aktif, payment paid, bill closed/cancelled, atau menu/options tidak sesuai organisasi/order.',
+                'Menambah item ke open bill aktif menggunakan header `X-Public-Token: {public_token}`. Pending/paid QRIS memblokir tambah item.',
+                'Item tidak bisa ditambahkan saat QRIS pending aktif, payment paid, bill closed/cancelled, atau menu/options tidak sesuai.',
             ],
             $uri === 'v1/customer/order/pay-qris' && $method === 'post' => [
                 'Create or reuse open bill QRIS',
-                'Membuat QRIS untuk open bill aktif. Duplicate guard berlaku per order: jika open bill ini masih punya QRIS pending aktif, API mengembalikan QRIS existing. QRIS baru bisa dibuat setelah cancelled, failed, atau expired yang sudah disinkronkan.',
+                'Membuat QRIS untuk open bill aktif menggunakan header `X-Public-Token: {public_token}`. Jika open bill masih punya QRIS pending aktif, API mengembalikan QRIS existing.',
                 'QRIS tidak bisa dibuat saat total 0, order sudah paid/closed/cancelled, atau order tidak punya item aktif.',
             ],
             $uri === 'v1/customer/order/qris-status' && $method === 'get' => [
                 'Poll open bill QRIS status',
-                'Menyinkronkan status QRIS open bill ke provider. Jika paid, bill ditutup; jika expired/cancelled/failed, attempt aktif diarsipkan agar bisa regenerate.',
+                'Menyinkronkan status QRIS open bill ke provider menggunakan header `X-Public-Token: {public_token}`. Jika paid, bill ditutup; jika expired/cancelled/failed, attempt aktif diarsipkan.',
                 null,
             ],
             $uri === 'v1/customer/order/qris-cancel' && $method === 'delete' => [
                 'Cancel active open bill QRIS',
-                'Membatalkan QRIS pending open bill, mengarsipkan attempt aktif ke `orders.metadata.qris_attempts[]`, lalu membuka jalan untuk edit item atau regenerate QRIS.',
-                'QRIS tidak bisa dibatalkan jika tidak ada attempt pending aktif atau provider menolak cancel.',
+                'Membatalkan QRIS pending open bill menggunakan header `X-Public-Token: {public_token}`. Membatalkan attempt pembayaran tidak membatalkan/menutup open bill.',
+                'QRIS tidak bisa dibatalkan jika tidak ada attempt pending aktif.',
+            ],
+            $uri === 'v1/customer/orders/{order}/receipt/download' && $method === 'get' => [
+                'Download payment receipt PDF',
+                'Mengunduh struk pembayaran dalam format PDF untuk order yang sudah lunas (`payment_status = paid`). ' .
+                'Struk berisi detail pesanan (item, harga, pajak, service charge), data pembayaran, informasi meja, dan branding organisasi. ' .
+                'Gunakan `order_number` (contoh: `ORD-20260609-0001`) atau `public_token` sebagai parameter `{order}`. ' .
+                'Tidak memerlukan autentikasi — endpoint publik. Response bertipe `application/pdf`.',
+                'Order tidak ditemukan atau belum lunas (payment_status bukan paid).',
             ],
             default => [null, null, null],
         };

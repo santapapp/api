@@ -17,16 +17,31 @@ class OrderDetailResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        // Resolve organization: dari dining_table.organization jika ada meja,
+        // fallback ke order.organization langsung (open bill tanpa meja).
+        $resolvedOrg = $this->relationLoaded('diningTable') && $this->diningTable?->relationLoaded('organization')
+            ? ($this->diningTable->organization ?? ($this->relationLoaded('organization') ? $this->organization : null))
+            : ($this->relationLoaded('organization') ? $this->organization : null);
+
         return [
             'id'                           => $this->id,
             'order_number'                 => $this->order_number,
             'public_token'                 => $this->public_token,
-            'order_type'                   => $this->order_type,
-            'bill_status'                  => $this->bill_status,
-            'order_status'                 => $this->order_status,
-            'payment_status'               => $this->payment_status,
+            // Enum fields di-serialize sebagai string value secara eksplisit
+            // agar frontend bisa membandingkan dengan string biasa (mis. 'open_bill').
+            'order_type'                   => $this->order_type?->value,
+            'bill_status'                  => $this->bill_status?->value,
+            'order_status'                 => $this->order_status?->value,
+            'payment_status'               => $this->payment_status?->value,
             'payment_method'               => $this->payment_method,
             'payment_reference'            => $this->payment_reference,
+            // Organization di root level — selalu tersedia untuk open bill (dengan/tanpa meja)
+            'organization'                 => $resolvedOrg ? [
+                'id'   => $resolvedOrg->id,
+                'name' => $resolvedOrg->name,
+                'slug' => $resolvedOrg->slug,
+            ] : null,
+
             'payment_expires_at'           => $this->payment_expires_at?->toIso8601String(),
             'qris'                         => [
                 'active'         => $this->metadata['qris_active'] ?? null,
@@ -40,6 +55,8 @@ class OrderDetailResource extends JsonResource
             // Customer
             'customer_name'                => $this->customer_name,
             'customer_phone'               => $this->customer_phone,
+            // Nomor Penanda Pesanan
+            'order_marker_number'          => $this->order_marker_number,
             // Financial
             'subtotal_amount'              => self::num($this->subtotal_amount),
             'discount_amount'              => self::num($this->discount_amount),

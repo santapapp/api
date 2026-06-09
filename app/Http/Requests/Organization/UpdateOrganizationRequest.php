@@ -42,6 +42,9 @@ class UpdateOrganizationRequest extends FormRequest
             'opening_hours.*.open'    => ['nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
             'opening_hours.*.close'   => ['nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
             'settings'                => ['sometimes', 'nullable', 'array'],
+            // Nomor Penanda Pesanan
+            'order_marker_mode'       => ['sometimes', 'string', 'in:disabled,optional,required'],
+            'order_marker_max_number' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:9999'],
         ];
     }
 }

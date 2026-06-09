@@ -23,6 +23,7 @@ class Order extends Model
         'public_token',
         'organization_id',
         'dining_table_id',
+        'order_marker_number',
         'created_by',
         'cancelled_by',
         'cancel_reason',
@@ -81,6 +82,7 @@ class Order extends Model
             'cancelled_at'                 => 'datetime',
             'payment_expires_at'           => 'datetime',
             'metadata'                     => 'array',
+            'order_marker_number'          => 'integer',
         ];
     }
 
@@ -137,6 +139,34 @@ class Order extends Model
     public function isCancelled(): bool
     {
         return $this->order_status === OrderStatus::Cancelled;
+    }
+
+    public function getDerivedSessionStatus(): string
+    {
+        if ($this->isCancelled() || $this->cancelled_at !== null) {
+            return 'Dibatalkan';
+        }
+        if ($this->bill_status === BillStatus::Closed || $this->closed_at !== null) {
+            return 'Ditutup';
+        }
+        if ($this->bill_status === BillStatus::Open) {
+            return 'Aktif';
+        }
+        return 'Tidak valid';
+    }
+
+    public function getDerivedSessionStatusColor(): string
+    {
+        if ($this->isCancelled() || $this->cancelled_at !== null) {
+            return 'danger';
+        }
+        if ($this->bill_status === BillStatus::Closed || $this->closed_at !== null) {
+            return 'gray';
+        }
+        if ($this->bill_status === BillStatus::Open) {
+            return 'success';
+        }
+        return 'warning';
     }
 
     /**

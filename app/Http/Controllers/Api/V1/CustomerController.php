@@ -310,11 +310,14 @@ class CustomerController extends Controller
      *
      * Hanya dipakai untuk flow open bill aktif. Order disuplai oleh middleware
      * ensure.customer.token (order_type=open_bill, bill_status=open).
+     *
+     * Load 'organization' secara langsung untuk menangani kasus open bill
+     * tanpa meja (dining_table_id = null).
      */
     public function showOrder(Request $request): JsonResponse
     {
         $order = $request->attributes->get('customer_order');
-        $order->load(['items', 'diningTable.organization']);
+        $order->load(['items', 'diningTable.organization', 'organization']);
 
         return response()->json([
             'data' => new OrderDetailResource($order),

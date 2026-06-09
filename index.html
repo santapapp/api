@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT Indotech Berkah Abadi | Ekosistem Brand Homecare & Kemitraan Depo Sabun Curah</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            teal: '#0f766e', // Deep Teal
+                            emerald: '#059669', // Fresh Emerald
+                            dark: '#0f172a', // Slate Dark
+                            soft: '#f1f5f9', // Soft Gray
+                            accent: '#fbbf24' // Soft Golden Yellow
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased overflow-x-hidden">
+
+    <!-- FLOATING GLASSMORPHISM NAVBAR -->
+    <header class="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-7xl z-50 transition-all duration-300">
+        <nav class="backdrop-blur-md bg-white/85 border border-slate-200/50 rounded-2xl shadow-lg px-6 py-4 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-teal text-white p-2 rounded-xl flex items-center justify-center shadow-md">
+                    <i data-lucide="beaker" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-brand-teal to-brand-emerald bg-clip-text text-transparent">INDOTECH</span>
+                    <span class="block text-[9px] text-slate-500 font-medium tracking-widest uppercase">BERKAH ABADI</span>
+                </div>
+            </div>
+
+            <!-- Desktop Navigation Menu -->
+            <ul class="hidden lg:flex items-center gap-8 font-semibold text-sm text-slate-600">
+                <li><a href="#beranda" class="hover:text-brand-teal transition-colors">Beranda</a></li>
+                <li><a href="#tentang" class="hover:text-brand-teal transition-colors">Tentang Kami</a></li>
+                <li><a href="#brand" class="hover:text-brand-teal transition-colors">Brand Kami</a></li>
+                <li><a href="#paket" class="hover:text-brand-teal transition-colors">Paket Kemitraan</a></li>
+                <li><a href="#faq" class="hover:text-brand-teal transition-colors">FAQ</a></li>
+                <li><a href="#kontak" class="hover:text-brand-teal transition-colors">Kontak</a></li>
+            </ul>
+
+            <!-- CTA Button Navbar -->
+            <div class="hidden md:flex items-center gap-3">
+                <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Indotech+Saya+tertarik+konsultasi+kemitraan+Depo+Cleanique" target="_blank" 
+                   class="bg-brand-teal hover:bg-teal-800 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition duration-300 flex items-center gap-2 shadow-md shadow-teal-900/10 hover:shadow-lg hover:shadow-teal-900/20">
+                    <i data-lucide="phone" class="w-4 h-4"></i>
+                    Konsultasi Gratis
+                </a>
+            </div>
+
+            <!-- Mobile Hamburger Menu Button -->
+            <button id="menu-btn" class="lg:hidden p-2 text-slate-600 hover:text-brand-teal focus:outline-none">
+                <i data-lucide="menu" class="w-6 h-6" id="menu-icon"></i>
+            </button>
+        </nav>
+
+        <!-- Mobile Navigation Dropdown -->
+        <div id="mobile-menu" class="hidden absolute top-20 left-0 w-full bg-white/95 backdrop-blur-lg border border-slate-200 rounded-2xl shadow-xl p-6 flex flex-col gap-4 font-semibold text-slate-700 animate-fade-in">
+            <a href="#beranda" class="mobile-link py-2 border-b border-slate-100 hover:text-brand-teal transition-colors">Beranda</a>
+            <a href="#tentang" class="mobile-link py-2 border-b border-slate-100 hover:text-brand-teal transition-colors">Tentang Kami</a>
+            <a href="#brand" class="mobile-link py-2 border-b border-slate-100 hover:text-brand-teal transition-colors">Brand Kami</a>
+            <a href="#paket" class="mobile-link py-2 border-b border-slate-100 hover:text-brand-teal transition-colors">Paket Kemitraan</a>
+            <a href="#faq" class="mobile-link py-2 border-b border-slate-100 hover:text-brand-teal transition-colors">FAQ</a>
+            <a href="#kontak" class="mobile-link py-2 hover:text-brand-teal transition-colors">Kontak</a>
+            <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Indotech+Saya+tertarik+konsultasi+kemitraan+Depo+Cleanique" target="_blank" 
+               class="bg-brand-teal text-white font-bold py-3 rounded-xl text-center shadow-lg transition duration-300 mt-2 flex items-center justify-center gap-2">
+                <i data-lucide="phone" class="w-4 h-4"></i>
+                Konsultasi WhatsApp
+            </a>
+        </div>
+    </header>
+
+
+    <!-- HERO SECTION -->
+    <section id="beranda" class="relative pt-32 pb-20 lg:pt-44 lg:pb-32 bg-gradient-to-b from-teal-50 via-white to-slate-50 overflow-hidden">
+        <!-- Background Liquid Shapes & Clean Bubbles -->
+        <div class="absolute top-20 left-10 w-72 h-72 bg-brand-teal/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+        <div class="absolute bottom-10 right-10 w-96 h-96 bg-brand-emerald/5 rounded-full blur-3xl -z-10"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <!-- Hero Text Content -->
+            <div class="lg:col-span-7 text-center lg:text-left space-y-6">
+                <!-- Premium Badge -->
+                <div class="inline-flex items-center gap-2 bg-teal-100/60 border border-teal-200/50 px-4 py-1.5 rounded-full text-brand-teal text-xs lg:text-sm font-semibold tracking-wide">
+                    <span class="w-2 h-2 bg-brand-emerald rounded-full animate-ping"></span>
+                    Sejak 2011 • Homecare • PKRT • Kemitraan • Academy
+                </div>
+                
+                <!-- Headline -->
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-slate-900">
+                    House of Homecare Brands <br class="hidden sm:inline">
+                    <span class="bg-gradient-to-r from-brand-teal to-brand-emerald bg-clip-text text-transparent">from Yogyakarta</span>
+                </h1>
+                
+                <!-- Subheadline -->
+                <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 font-medium leading-relaxed">
+                    PT Indotech Berkah Abadi menghadirkan ekosistem brand homecare, produk PKRT berizin resmi, pelatihan formula kimia praktis, dan solusi kemitraan depo sabun curah terpadu untuk rumah tangga hingga industri profesional.
+                </p>
+                
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+                    <a href="#brand" class="w-full sm:w-auto bg-brand-teal hover:bg-teal-800 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-teal-900/15 transition-transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
+                        Lihat Brand Kami
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </a>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Indotech+Saya+ingin+bertanya+mengenai+peluang+kemitraan+Depo+Cleanique" target="_blank"
+                       class="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold px-8 py-4 rounded-xl shadow-md transition-transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
+                        <i data-lucide="help-circle" class="w-5 h-5 text-brand-teal"></i>
+                        Konsultasi Kemitraan
+                    </a>
+                </div>
+
+                <!-- Small Trust Indicator -->
+                <div class="pt-8 border-t border-slate-200/60 flex flex-wrap justify-center lg:justify-start items-center gap-6 text-slate-500 text-xs sm:text-sm">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-5 h-5 text-brand-emerald"></i>
+                        <span>Produk Berizin Kemenkes</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="award" class="w-5 h-5 text-brand-emerald"></i>
+                        <span>Sertifikasi Halal Resmi</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Visual Feature Grid (Cleaner and Premium Alternative to Cluttered Product Photos) -->
+            <div class="lg:col-span-5 relative">
+                <!-- Abstract Premium Lab Liquid Shape Background -->
+                <div class="absolute inset-0 bg-gradient-to-tr from-teal-100 to-emerald-50 rounded-[40px] rotate-3 -z-10 shadow-inner"></div>
+                
+                <div class="relative bg-white/60 backdrop-blur-sm border border-slate-200/50 rounded-[40px] p-8 shadow-2xl grid grid-cols-2 gap-4">
+                    <!-- Highlight Card 1 -->
+                    <div class="bg-white p-6 rounded-3xl shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+                        <div class="bg-teal-50 w-12 h-12 rounded-2xl flex items-center justify-center text-brand-teal mb-4">
+                            <i data-lucide="package" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="block text-2xl font-black text-slate-900">7+</span>
+                            <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Brand Dagang</span>
+                        </div>
+                    </div>
+                    <!-- Highlight Card 2 -->
+                    <div class="bg-white p-6 rounded-3xl shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+                        <div class="bg-emerald-50 w-12 h-12 rounded-2xl flex items-center justify-center text-brand-emerald mb-4">
+                            <i data-lucide="droplet" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="block text-2xl font-black text-slate-900">100%</span>
+                            <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Homecare & PKRT</span>
+                        </div>
+                    </div>
+                    <!-- Highlight Card 3 -->
+                    <div class="bg-white p-6 rounded-3xl shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+                        <div class="bg-sky-50 w-12 h-12 rounded-2xl flex items-center justify-center text-sky-600 mb-4">
+                            <i data-lucide="store" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="block text-2xl font-black text-slate-900">Depo</span>
+                            <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Kemitraan Mandiri</span>
+                        </div>
+                    </div>
+                    <!-- Highlight Card 4 -->
+                    <div class="bg-white p-6 rounded-3xl shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+                        <div class="bg-amber-50 w-12 h-12 rounded-2xl flex items-center justify-center text-amber-500 mb-4">
+                            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="block text-2xl font-black text-slate-900">Academy</span>
+                            <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Pelatihan Kimia</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION SOSIAL PROOF / PENCAPAIAN -->
+    <section class="py-12 bg-brand-teal text-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center divide-y sm:divide-y-0 sm:divide-x divide-teal-500/40">
+                <div class="p-4 space-y-2">
+                    <span class="block text-4xl lg:text-5xl font-black text-brand-accent">1.000.000+</span>
+                    <p class="text-sm lg:text-base text-teal-100 font-medium">Unit Produk Terjual Nasional</p>
+                </div>
+                <div class="p-4 space-y-2">
+                    <span class="block text-4xl lg:text-5xl font-black text-brand-accent">4+ Tahun</span>
+                    <p class="text-sm lg:text-base text-teal-100 font-medium">Program Kemitraan Berhasil Berjalan</p>
+                </div>
+                <div class="p-4 space-y-2">
+                    <span class="block text-4xl lg:text-5xl font-black text-brand-accent">Sejak 2011</span>
+                    <p class="text-sm lg:text-base text-teal-100 font-medium">Eksistensi Formulasi Kimia Tepercaya</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION TENTANG PT INDOTECH -->
+    <section id="tentang" class="py-20 lg:py-28 bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">PROFIL UTAMA PERUSAHAAN</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">PT Indotech Berkah Abadi</h2>
+                <div class="w-16 h-1 bg-brand-emerald mx-auto rounded-full"></div>
+                <p class="text-base sm:text-lg text-slate-600 leading-relaxed pt-2">
+                    PT Indotech Berkah Abadi adalah perusahaan terpercaya asal Kabupaten Sleman, D.I. Yogyakarta yang mendedikasikan diri pada pengembangan produk perawatan rumah tangga (homecare), laundry chemical, Perbekalan Kesehatan Rumah Tangga (PKRT), serta sarana edukasi praktis bagi pengusaha kebersihan Indonesia.
+                </p>
+            </div>
+
+            <!-- Value Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Value 1 -->
+                <div class="bg-slate-50/70 border border-slate-100 p-8 rounded-3xl hover:bg-white hover:shadow-xl transition-all duration-300 space-y-5">
+                    <div class="bg-teal-50 text-brand-teal w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i data-lucide="flask" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">Produksi & Riset Kimia</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Kami meriset dan memproduksi produk kebersihan ramah lingkungan berkualitas tinggi di bawah legalitas Kemenkes & izin industri tepercaya.
+                    </p>
+                </div>
+                <!-- Value 2 -->
+                <div class="bg-slate-50/70 border border-slate-100 p-8 rounded-3xl hover:bg-white hover:shadow-xl transition-all duration-300 space-y-5">
+                    <div class="bg-emerald-50 text-brand-emerald w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i data-lucide="git-branch" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">Ekosistem Brand Terintegrasi</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Menaungi brand-brand dagang yang saling melengkapi mulai dari jaringan kemitraan retail, makloon pabrikan, hingga lembaga edukasi nasional.
+                    </p>
+                </div>
+                <!-- Value 3 -->
+                <div class="bg-slate-50/70 border border-slate-100 p-8 rounded-3xl hover:bg-white hover:shadow-xl transition-all duration-300 space-y-5">
+                    <div class="bg-amber-50 text-amber-600 w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i data-lucide="check-circle" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">Kualitas & Kebermanfaatan</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Menjamin kualitas sabun curah, biang konsentrat yang ekonomis, serta pelatihan nyata yang menumbuhkan wirausahawan baru di daerah.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION BRAND ECOSYSTEM (WITH INTERACTIVE FILTER TABS) -->
+    <section id="brand" class="py-20 lg:py-28 bg-slate-100/60 relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-12">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">BRAND EKOSISTEM INDOTECH</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Sinergi Brand Sektor Hulu ke Hilir</h2>
+                <p class="text-sm sm:text-base text-slate-500">Gunakan filter di bawah untuk memahami spesifikasi segmentasi lini produk di bawah holding PT Indotech Berkah Abadi.</p>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex flex-wrap justify-center items-center gap-2 mb-12">
+                <button onclick="filterBrands('all')" id="tab-all" class="brand-tab px-5 py-2.5 rounded-full text-sm font-bold bg-brand-teal text-white shadow-md transition-all">Semua Brand</button>
+                <button onclick="filterBrands('homecare')" id="tab-homecare" class="brand-tab px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-slate-600 border border-slate-200/50 hover:bg-slate-50 transition-all">Homecare & Personal Care</button>
+                <button onclick="filterBrands('kemitraan')" id="tab-kemitraan" class="brand-tab px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-slate-600 border border-slate-200/50 hover:bg-slate-50 transition-all">Kemitraan & Ritel</button>
+                <button onclick="filterBrands('academy')" id="tab-academy" class="brand-tab px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-slate-600 border border-slate-200/50 hover:bg-slate-50 transition-all">Pelatihan & Edukasi</button>
+                <button onclick="filterBrands('professional')" id="tab-professional" class="brand-tab px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-slate-600 border border-slate-200/50 hover:bg-slate-50 transition-all">Professional Care & Fragrance</button>
+            </div>
+
+            <!-- Brands Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="brands-grid">
+                
+                <!-- Cleaniquemart -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="kemitraan">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-teal-50 text-brand-teal px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Kemitraan & Depo Homecare</div>
+                        <span class="w-2.5 h-2.5 bg-brand-teal rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Cleanique Mart</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Jaringan kemitraan bisnis depo sabun curah dan homecare curah bebas royalti, menyediakan produk siap pakai langsung dari pabrik.
+                    </p>
+                    <a href="#paket" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Pelajari Kemitraan <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Cleaniquelab -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="homecare">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-emerald-50 text-brand-emerald px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Produsen PKRT & Kebersihan</div>
+                        <span class="w-2.5 h-2.5 bg-brand-emerald rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Cleanique Lab</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Merek terdaftar HAKI (IDM001322029) produsen aneka formulasi sabun pembersih, bahan kimia sanitasi, dan produk disinfeksi massal.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Cleanique+Lab+Saya+tertarik+makloon+atau+keagenan" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Hubungi Admin Lab <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Cleaniqueacademy -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="academy">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Pelatihan Pembuatan Kimia</div>
+                        <span class="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Cleanique Academy</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Pusat pelatihan praktis pembuatan sabun curah, laundry chemical, otomotif, dan cleaning chemical langsung dibimbing praktisi pabrik.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Cleanique+Academy+Saya+tertarik+kelas+pelatihan" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Daftar Pelatihan <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Orchidcare -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="homecare">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Green Cleaning & Homecare</div>
+                        <span class="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Orchid Care</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Menghadirkan deterjen premium, sabun pencuci piring ramah lingkungan, biang pelicin, serta pembersih kendaraan yang didistribusikan ke 20 provinsi.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Orchid+Care+Saya+ingin+tahu+distributor+terdekat" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Tanya Distributor <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Orchidbrand -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="homecare">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Perawatan Rumah & Personal Care</div>
+                        <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Orchid Brand</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Pioneer distributor sabun curah di Indonesia dengan portofolio lebih dari 20 jenis produk pembersih unggulan yang mendominasi Pulau Jawa.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Orchid+Brand+Saya+tertarik+stok+produk" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Lihat Katalog <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Malabeez -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="professional">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-fuchsia-50 text-fuchsia-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Pengharum Premium & Interior</div>
+                        <span class="w-2.5 h-2.5 bg-fuchsia-500 rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Malabeez</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Wewangian linen, interior, dan pengharum ruangan premium tahan lama, dilengkapi formula anti-apek serta teknologi anti-bakteri.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Malabeez+Saya+mau+beli+parfum+interior" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Beli Retail <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Prokopi -->
+                <div class="brand-card bg-white rounded-3xl border border-slate-200/40 p-6 shadow-md hover:shadow-xl transition-all duration-300" data-category="professional">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-rose-50 text-rose-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Descaler Mesin Espresso</div>
+                        <span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+                    </div>
+                    <h4 class="text-xl font-bold text-slate-950 mb-2">Prokopi</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                        Merek khusus bahan pembersih dan descaler profesional yang diformulasikan presisi untuk merawat performa serta kebersihan mesin kopi espresso.
+                    </p>
+                    <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+Prokopi+Saya+ingin+order+descaler+untuk+kafe" target="_blank" class="inline-flex items-center gap-2 text-sm font-bold text-brand-teal hover:text-brand-emerald transition-colors">
+                        Order Profesional <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION KATEGORI PRODUK -->
+    <section class="py-20 lg:py-28 bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">PORTFOLIO CHEMICALS</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Kategori Produk yang Kami Kembangkan</h2>
+                <div class="w-16 h-1 bg-brand-emerald mx-auto rounded-full"></div>
+            </div>
+
+            <!-- Grid Kategori -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 text-center">
+                <!-- Item 1 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="shirt" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Deterjen Laundry</span>
+                </div>
+                <!-- Item 2 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="sparkles" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Sabun Cuci Piring</span>
+                </div>
+                <!-- Item 3 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="wind" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Pewangi & Softener</span>
+                </div>
+                <!-- Item 4 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="utility-pole" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Pelicin Setrika</span>
+                </div>
+                <!-- Item 5 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="container" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Pembersih Lantai</span>
+                </div>
+                <!-- Item 6 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="car" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Cuci Kendaraan</span>
+                </div>
+                <!-- Item 7 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="spray-can" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Pengharum Ruangan</span>
+                </div>
+                <!-- Item 8 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="coffee" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Descaler Mesin Kopi</span>
+                </div>
+                <!-- Item 9 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="microscope" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Biang / Bahan Baku</span>
+                </div>
+                <!-- Item 10 -->
+                <div class="p-6 border border-slate-100 rounded-2xl hover:shadow-lg hover:border-brand-teal/20 transition-all">
+                    <div class="w-12 h-12 bg-teal-50 text-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="brush" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-sm text-slate-800">Cleaning Products</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION PILIHAN PAKET KEMITRAAN -->
+    <section id="paket" class="py-20 lg:py-28 bg-slate-100/60 relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">PILIHAN PAKET INVESTASI</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Mulai Usaha Depo Cleanique Mart Anda</h2>
+                <p class="text-sm sm:text-base text-slate-600">Investasi transparan, legal, teruji secara operasional, bebas franchise fee tahunan.</p>
+            </div>
+
+            <!-- Side-by-Side Packages -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                
+                <!-- Paket Starter -->
+                <div class="bg-white rounded-[32px] border border-slate-200/50 p-8 shadow-md hover:shadow-xl transition-all duration-300 relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <span class="bg-slate-100 text-slate-700 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Pilihan Pemula</span>
+                            <span class="w-3 h-3 bg-slate-400 rounded-full"></span>
+                        </div>
+                        <h4 class="text-2xl font-black text-slate-900">Paket Starter</h4>
+                        <p class="text-sm text-slate-500 mb-4">Sangat cocok untuk pemula yang ingin memanfaatkan ruang toko kosong atau garasi rumah.</p>
+                        <div class="py-4 border-y border-slate-100 my-4">
+                            <span class="text-xs text-slate-400 line-through">Rp 19.500.000</span>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-3xl sm:text-4xl font-extrabold text-brand-teal">Rp 15.000.000</span>
+                                <span class="text-xs text-slate-500 font-medium">Lengkap</span>
+                            </div>
+                        </div>
+
+                        <!-- Fasilitas List -->
+                        <ul class="space-y-3.5 mb-8 text-sm font-medium text-slate-600">
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Rak Depot & 8 Kontainer Sabun Curah</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Stok Produk Awal Senilai Rp 6.000.000</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Peralatan Produksi & Peralatan Packing Lengkap</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Media Promosi Cetak & Digital</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Training Chemical & Manajemen Bisnis Mandiri</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-emerald shrink-0"></i>
+                                <span>Listing & Optimasi Google Maps Lokal</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="https://api.whatsapp.com/send/?phone=6287885590088&text=Halo+Cleanique+Mart%2C+Saya+tertarik+mengambil+Paket+Starter+15+Juta+Rupiah" target="_blank"
+                       class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-2xl text-center shadow-lg transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                        Ambil Paket Starter <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Paket King -->
+                <div class="bg-gradient-to-br from-teal-900 to-emerald-950 rounded-[32px] p-8 shadow-xl hover:shadow-2xl transition-all duration-300 relative flex flex-col justify-between text-white">
+                    <div class="absolute top-0 right-12 -translate-y-1/2 bg-brand-accent text-slate-900 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">Paling Populer</div>
+                    
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <span class="bg-teal-800/80 text-teal-100 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Skala Distribusi</span>
+                            <span class="w-3 h-3 bg-brand-accent rounded-full animate-ping"></span>
+                        </div>
+                        <h4 class="text-2xl font-black text-white">Paket King</h4>
+                        <p class="text-sm text-teal-200/80 mb-4">Investasi eksklusif skala depo besar dengan optimalisasi online & offline super lengkap.</p>
+                        <div class="py-4 border-y border-teal-800/60 my-4">
+                            <span class="text-xs text-teal-300/60 line-through">Rp 30.000.000</span>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-3xl sm:text-4xl font-extrabold text-brand-accent">Rp 27.500.000</span>
+                                <span class="text-xs text-teal-200 font-medium">Full Support</span>
+                            </div>
+                        </div>
+
+                        <!-- Fasilitas List -->
+                        <ul class="space-y-3.5 mb-8 text-sm font-medium text-teal-100">
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span>Semua Fasilitas Paket Starter</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span class="font-semibold text-white">Stok Produk Awal Naik Jadi Rp 8.000.000</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span>Desain Interior 3D Kustom & Filter UV Air</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span>Setup Toko di Shopee & Tokopedia Marketplace</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span class="font-semibold text-white">Kustom Landing Page Website SEO Friendly</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-brand-accent shrink-0"></i>
+                                <span>Set-Up & Optimasi Akun Sosial Media</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="https://api.whatsapp.com/send/?phone=6287885590088&text=Halo+Cleanique+Mart%2C+Saya+tertarik+mengambil+Paket+King+27.5+Juta+Rupiah" target="_blank"
+                       class="w-full bg-brand-accent hover:bg-amber-500 text-slate-900 font-extrabold py-4 rounded-2xl text-center shadow-lg transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                        Ambil Paket King <i data-lucide="arrow-right" class="w-4 h-4 text-slate-900"></i>
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- Garansi Box -->
+            <div class="max-w-3xl mx-auto mt-12 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center space-y-3">
+                <div class="inline-flex items-center gap-2 bg-emerald-100 text-brand-emerald px-3 py-1 rounded-full text-xs font-bold">
+                    <i data-lucide="shield" class="w-4 h-4"></i> GARANSI 100% KESUKSESAN INVESTASI
+                </div>
+                <p class="text-sm sm:text-base text-slate-700 font-semibold italic">
+                    "Kami menjamin modal Anda akan kembali dalam waktu 12 bulan setelah mengikuti seluruh SOP bimbingan kami, atau kami siap mengembalikan dana investasi Anda sepenuhnya."
+                </p>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION TIMELINE ALUR BERGABUNG -->
+    <section class="py-20 lg:py-28 bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">PROSES KEMITRAAN</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Langkah Mudah Memulai Bisnis Depo Anda</h2>
+                <div class="w-16 h-1 bg-brand-emerald mx-auto rounded-full"></div>
+            </div>
+
+            <!-- Horizontal / Stack Timeline -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+                <!-- Step 1 -->
+                <div class="text-center space-y-4 relative">
+                    <div class="w-16 h-16 bg-teal-50 text-brand-teal font-extrabold text-xl rounded-full flex items-center justify-center mx-auto shadow-inner border border-teal-100">
+                        1
+                    </div>
+                    <h5 class="font-bold text-lg text-slate-900">Isi Formulir & Konsultasi</h5>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">Diskusikan minat, alokasi anggaran modal, dan pilih paket kemitraan yang paling pas untuk Anda.</p>
+                </div>
+                <!-- Step 2 -->
+                <div class="text-center space-y-4 relative">
+                    <div class="w-16 h-16 bg-teal-50 text-brand-teal font-extrabold text-xl rounded-full flex items-center justify-center mx-auto shadow-inner border border-teal-100">
+                        2
+                    </div>
+                    <h5 class="font-bold text-lg text-slate-900">Survey Lokasi & Area</h5>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">Tim ahli kami memvalidasi peta wilayah geografis Anda demi menjamin stabilitas harga wilayah tanpa perang kompetitor.</p>
+                </div>
+                <!-- Step 3 -->
+                <div class="text-center space-y-4 relative">
+                    <div class="w-16 h-16 bg-teal-50 text-brand-teal font-extrabold text-xl rounded-full flex items-center justify-center mx-auto shadow-inner border border-teal-100">
+                        3
+                    </div>
+                    <h5 class="font-bold text-lg text-slate-900">Pengiriman & Training</h5>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">Seluruh rak kontainer, peralatan, dan stok sabun awal dikirim. Anda dilatih dalam kemahiran chemical dasar & manajemen.</p>
+                </div>
+                <!-- Step 4 -->
+                <div class="text-center space-y-4 relative">
+                    <div class="w-16 h-16 bg-brand-teal text-white font-extrabold text-xl rounded-full flex items-center justify-center mx-auto shadow-md">
+                        4
+                    </div>
+                    <h5 class="font-bold text-lg text-slate-900">Depo Resmi Dibuka!</h5>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">Mulailah berjualan kepada para pengusaha laundry local, restoran, instansi B2B, maupun konsumen ritel umum.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION TESTIMONI MITRA REAL -->
+    <section class="py-20 bg-slate-100/60 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">TESTIMONIALS</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Apa Kata Mitra Depo Cleanique?</h2>
+                <div class="w-16 h-1 bg-brand-emerald mx-auto rounded-full"></div>
+            </div>
+
+            <!-- Testimonials Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Testi 1 -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200/40 shadow-sm space-y-6">
+                    <p class="text-slate-600 text-sm leading-relaxed italic">
+                        "Sudah belasan tahun saya bergerak di usaha household atau sabun. Namun, saat saya bergabung menjadi Mitra Depo Cleanique Temanggung, dukungan bahan baku, legalitas OSS, dan bimbingan yang saya dapatkan dari PT Indotech benar-benar luar biasa profesional."
+                    </p>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-brand-teal font-extrabold">WD</div>
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Windu Darojat</span>
+                            <span class="text-xs text-slate-400">Mitra Cleanique Temanggung</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testi 2 -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200/40 shadow-sm space-y-6">
+                    <p class="text-slate-600 text-sm leading-relaxed italic">
+                        "Bimbingan pemasaran online berbasis sistem AI lokal serta kemudahan training chemical dari tim pusat membuat depo isi ulang sabun rumah tangga saya di Sleman ini selalu kebanjiran order. Omzet depo sabun kami meningkat pesat!"
+                    </p>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-brand-teal font-extrabold">ID</div>
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Idha</span>
+                            <span class="text-xs text-slate-400">Mitra Cleanique Maguwoharjo</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testi 3 -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200/40 shadow-sm space-y-6">
+                    <p class="text-slate-600 text-sm leading-relaxed italic">
+                        "Kami berkomitmen penuh memajukan distribusi bahan kebersihan ini. Kualitas formulasinya sangat dinilai tinggi oleh para pemilik jasa laundry kiloan dan cuci mobil di Palembang. Harganya bersahabat, margin melimpah."
+                    </p>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-brand-teal font-extrabold">JR</div>
+                        <div>
+                            <span class="block font-bold text-slate-900 text-sm">Johan Regan Jauw</span>
+                            <span class="text-xs text-slate-400">Mitra Cleanique Palembang</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- NEW SECTION: PERTANYAAN YANG SERING DIAJUKAN (FAQ) -->
+    <section id="faq" class="py-20 lg:py-28 bg-white">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center space-y-4 mb-16">
+                <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">PERTANYAAN UMUM</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Pertanyaan yang Sering Diajukan (FAQ)</h2>
+                <div class="w-16 h-1 bg-brand-emerald mx-auto rounded-full"></div>
+            </div>
+
+            <!-- FAQ Accordion List -->
+            <div class="space-y-4">
+                
+                <!-- FAQ Item 1 -->
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button class="faq-btn w-full px-6 py-5 flex items-center justify-between text-left font-bold text-slate-900 hover:text-brand-teal transition-colors" onclick="toggleFaq(this)">
+                        <span>Apakah kemitraan Depo Cleanique mengenakan biaya royalti atau franchise fee tahunan?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                            Tidak sama sekali. Depo Cleanique menerapkan sistem <strong>Lisensi Murni</strong>, bukan waralaba (franchise). Seluruh laba harian maupun tahunan hasil penjualan produk sabun dari depo 100% menjadi hak milik Anda sepenuhnya tanpa potongan komisi sepeser pun.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button class="faq-btn w-full px-6 py-5 flex items-center justify-between text-left font-bold text-slate-900 hover:text-brand-teal transition-colors" onclick="toggleFaq(this)">
+                        <span>Bagaimana jaminan keamanan investasi jika dalam setahun modal saya belum kembali?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                            Kami sangat percaya diri dengan sistem bisnis depo sabun curah ini. Kami memberikan <strong>Garansi Kesuksesan 100%</strong> secara tertulis. Jika dalam kurun waktu 12 bulan modal awal investasi Anda belum kembali setelah menerapkan seluruh SOP, kami menjamin akan mengembalikan uang modal investasi Anda seutuhnya tanpa potongan.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button class="faq-btn w-full px-6 py-5 flex items-center justify-between text-left font-bold text-slate-900 hover:text-brand-teal transition-colors" onclick="toggleFaq(this)">
+                        <span>Apakah produk sabun dan homecare Depo Cleanique aman dan legal untuk diedarkan kembali?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                            Sangat aman. Seluruh formulasi sabun diproduksi langsung oleh PT Indotech Berkah Abadi yang telah mengantongi sertifikat industri resmi, mengantongi izin edar dari <strong>KEMENKES RI</strong>, serta tersertifikasi resmi <strong>Halal</strong>. Hal ini memberikan ketenangan operasional penuh bagi Anda.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button class="faq-btn w-full px-6 py-5 flex items-center justify-between text-left font-bold text-slate-900 hover:text-brand-teal transition-colors" onclick="toggleFaq(this)">
+                        <span>Saya belum pernah berbisnis bahan kimia/sabun, apakah ada panduan bimbingannya?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                            Tentu ada. Setiap pembelian paket investasi depo sudah mencakup <strong>Training Chemical Dasar & Manajemen Bisnis</strong> gratis dari tim ahli. Anda akan diajarkan sistem inventaris barang, cara pelayanan isi ulang sabun curah, hingga teknik strategi pemasaran online modern demi menggaet pelanggan lokal di area depo Anda.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden transition-all duration-300">
+                    <button class="faq-btn w-full px-6 py-5 flex items-center justify-between text-left font-bold text-slate-900 hover:text-brand-teal transition-colors" onclick="toggleFaq(this)">
+                        <span>Apakah saya bisa membuka kemitraan ini dari garasi rumah pribadi saja?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="px-6 pb-5 text-sm text-slate-600 leading-relaxed">
+                            Sangat bisa! Konsep kemitraan Depo Cleanique didesain fleksibel dan ramah bagi pelaku usaha rumahan. Garasi rumah, ruko kecil, teras samping, atau toko kelontong kosong bisa langsung disulap menjadi pusat depo sabun curah modern yang mendatangkan keuntungan harian stabil.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- SECTION KONTAK & PETA (SIMPLE, DIRECT & HIGH CONVERSION) -->
+    <section id="kontak" class="py-20 lg:py-28 bg-slate-100/60 relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
+                
+                <!-- Info Kontak Section -->
+                <div class="lg:col-span-5 flex flex-col justify-between space-y-8">
+                    <div class="space-y-4">
+                        <span class="text-xs font-bold text-brand-teal uppercase tracking-widest block">HUBUNGI KAMI</span>
+                        <h3 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Kunjungi Fasilitas / Konsultasi Langsung</h3>
+                        <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
+                            Ingin bertemu langsung, memvalidasi perizinan, atau melihat demo pengerjaan produk sebelum memutuskan berpartner? Silakan hubungi admin respon cepat kami atau kunjungi langsung kantor pusat kami di Yogyakarta.
+                        </p>
+                    </div>
+
+                    <!-- Detail Alamat & Jam Kerja -->
+                    <div class="space-y-4 bg-white p-6 rounded-2xl border border-slate-200/40 shadow-sm text-sm">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-brand-teal shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="block font-bold text-slate-900">Alamat Kantor & Pabrik</span>
+                                <p class="text-slate-600 leading-relaxed">Jongke Tengah No. 30 RT.01/RW.23, Sendangadi, Kec. Mlati, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55285</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="clock" class="w-5 h-5 text-brand-teal shrink-0"></i>
+                            <div>
+                                <span class="block font-bold text-slate-900">Jam Operasional</span>
+                                <p class="text-slate-600">Senin - Sabtu (08.00 - 16.00 WIB)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CTA Action WhatsApp -->
+                    <div class="space-y-3">
+                        <a href="https://api.whatsapp.com/send/?phone=6285559474797&text=Halo+cleaniquelab.com+Saya+Tahu+Dari+Website+Mau+Konsultasi+Peluang+Depo+Kemitraan&type=phone_number" target="_blank"
+                           class="w-full bg-brand-teal hover:bg-teal-800 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 flex items-center justify-center gap-3 text-center">
+                            <i data-lucide="message-square" class="w-6 h-6"></i>
+                            Hubungi Admin Respon Cepat (WA)
+                        </a>
+                        <p class="text-[11px] text-center text-slate-400">Klik tombol di atas untuk berkonsultasi seputar ketersediaan area wilayah depo Anda.</p>
+                    </div>
+                </div>
+
+                <!-- Google Maps Embed Section (User-Provided Iframe) -->
+                <div class="lg:col-span-7 bg-white p-4 rounded-3xl border border-slate-200/40 shadow-lg min-h-[400px] relative overflow-hidden flex flex-col justify-between">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m12!1m3!1d3953.4687640825315!2d110.3601449!3d-7.739958300000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e7a59e917dfa74b%3A0xc3b839e2beab0f7d!2sPT%20Indotech%20Berkah%20Abadi!5e0!3m2!1sid!2sid!4v1717830000000!5m2!1sid!2sid" 
+                            class="w-full h-[380px] rounded-2xl border-0" 
+                            allowfullscreen="" 
+                            loading="lazy" 
+                            referrerpolicy="no-referrer-when-downgrade">
+                    </iframe>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- PREMIUM FOOTER -->
+    <footer class="bg-slate-900 text-slate-300 pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-slate-800">
+            <!-- Brand Column -->
+            <div class="md:col-span-4 space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-brand-teal text-white p-2.5 rounded-xl flex items-center justify-center">
+                        <i data-lucide="beaker" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-lg text-white tracking-tight">PT INDOTECH</span>
+                        <span class="block text-[9px] text-slate-400 font-medium tracking-widest uppercase">BERKAH ABADI</span>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-400 leading-relaxed">
+                    Pengembang dan produsen Fast Moving Consumer Goods (FMCG) serta Perbekalan Kesehatan Rumah Tangga (PKRT) tepercaya dari Kabupaten Sleman, Yogyakarta sejak 2011.
+                </p>
+                <!-- Trust icons -->
+                <div class="flex items-center gap-4 text-slate-500">
+                    <i data-lucide="shield-alert" class="w-6 h-6 hover:text-brand-emerald transition-colors cursor-help" title="Kemenkes Approved"></i>
+                    <i data-lucide="heart" class="w-6 h-6 hover:text-brand-emerald transition-colors cursor-help" title="Ramah Lingkungan"></i>
+                    <i data-lucide="award" class="w-6 h-6 hover:text-brand-emerald transition-colors cursor-help" title="Sertifikasi Halal"></i>
+                </div>
+            </div>
+
+            <!-- Brand Ecosystem Links -->
+            <div class="md:col-span-4 space-y-4">
+                <h6 class="text-white font-bold text-sm uppercase tracking-wider">Ekosistem Brand Kami</h6>
+                <ul class="space-y-2.5 text-sm font-semibold">
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-brand-emerald rounded-full"></span><a href="https://cleaniquemart.com" target="_blank" class="hover:text-white text-slate-400 transition-colors">Cleanique Mart <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-normal">Kemitraan</span></a></li>
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-brand-emerald rounded-full"></span><a href="https://cleaniquelab.com" target="_blank" class="hover:text-white text-slate-400 transition-colors">Cleanique Lab <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-normal">PKRT</span></a></li>
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-brand-emerald rounded-full"></span><a href="https://cleaniqueacademy.com" target="_blank" class="hover:text-white text-slate-400 transition-colors">Cleanique Academy <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-normal">Edukasi</span></a></li>
+                    <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-brand-emerald rounded-full"></span><a href="https://orchidbrand.id" target="_blank" class="hover:text-white text-slate-400 transition-colors">Orchid Care & Brand <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-normal">Homecare</span></a></li>
+                </ul>
+            </div>
+
+            <!-- Menu Navigation Links -->
+            <div class="md:col-span-4 space-y-4">
+                <h6 class="text-white font-bold text-sm uppercase tracking-wider">Navigasi Halaman</h6>
+                <ul class="space-y-2.5 text-sm font-semibold text-slate-400">
+                    <li><a href="#beranda" class="hover:text-white transition-colors">Beranda</a></li>
+                    <li><a href="#tentang" class="hover:text-white transition-colors">Tentang Kami</a></li>
+                    <li><a href="#brand" class="hover:text-white transition-colors">Brand Kami</a></li>
+                    <li><a href="#paket" class="hover:text-white transition-colors">Paket Kemitraan</a></li>
+                    <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- COPYRIGHT, PRIVACY, TERMS SOCKET ROW (UI/UX Best Practice) -->
+        <div class="max-w-7xl mx-auto px-6 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+            <div>
+                <span>&copy; 2026 PT Indotech Berkah Abadi. Hak Cipta Dilindungi Undang-Undang.</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <a href="#" class="hover:text-white transition-colors">Kebijakan Privasi</a>
+                <a href="#" class="hover:text-white transition-colors">Syarat & Ketentuan</a>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- JAVASCRIPT LOGIC (FAQ Accordion, Brand Filter, Mobile Menu) -->
+    <script>
+        // Initialize Lucide Icons
+        window.addEventListener('load', () => {
+            lucide.createIcons();
+        });
+
+        // Mobile Menu Trigger Toggle
+        const menuBtn = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuIcon = document.getElementById('menu-icon');
+
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            if(mobileMenu.classList.contains('hidden')) {
+                menuIcon.setAttribute('data-lucide', 'menu');
+            } else {
+                menuIcon.setAttribute('data-lucide', 'x');
+            }
+            lucide.createIcons();
+        });
+
+        // Close mobile menu on clicking any navigation link
+        const mobileLinks = document.querySelectorAll('.mobile-link');
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                menuIcon.setAttribute('data-lucide', 'menu');
+                lucide.createIcons();
+            });
+        });
+
+        // FAQ Toggle Dropdown Accordion Function
+        function toggleFaq(button) {
+            const faqItem = button.parentElement;
+            const faqContent = button.nextElementSibling;
+            const chevron = button.querySelector('[data-lucide="chevron-down"]');
+
+            // Close all other FAQ items first
+            document.querySelectorAll('.faq-item').forEach(item => {
+                if (item !== faqItem) {
+                    const otherContent = item.querySelector('.faq-content');
+                    const otherChevron = item.querySelector('[data-lucide="chevron-down"]');
+                    otherContent.style.maxHeight = null;
+                    item.classList.remove('border-brand-teal');
+                    if (otherChevron) {
+                        otherChevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+            });
+
+            // Toggle selected FAQ item
+            if (faqContent.style.maxHeight) {
+                faqContent.style.maxHeight = null;
+                faqItem.classList.remove('border-brand-teal');
+                if (chevron) {
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            } else {
+                faqContent.style.maxHeight = faqContent.scrollHeight + "px";
+                faqItem.classList.add('border-brand-teal');
+                if (chevron) {
+                    chevron.style.transform = 'rotate(180deg)';
+                }
+            }
+        }
+
+        // Interactive Brand Filter Tabs
+        function filterBrands(category) {
+            // Update Tab Button Colors
+            const tabs = document.querySelectorAll('.brand-tab');
+            tabs.forEach(tab => {
+                tab.className = 'brand-tab px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-slate-600 border border-slate-200/50 hover:bg-slate-50 transition-all';
+            });
+
+            const activeTab = document.getElementById(`tab-${category}`);
+            if (activeTab) {
+                activeTab.className = 'brand-tab px-5 py-2.5 rounded-full text-sm font-bold bg-brand-teal text-white shadow-md transition-all';
+            }
+
+            // Hide or Show Cards
+            const cards = document.querySelectorAll('.brand-card');
+            cards.forEach(card => {
+                const cardCategory = card.getAttribute('data-category');
+                if (category === 'all' || cardCategory === category) {
+                    card.style.display = 'block';
+                    card.style.opacity = '1';
+                } else {
+                    card.style.display = 'none';
+                    card.style.opacity = '0';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

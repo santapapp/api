@@ -41,6 +41,9 @@ class Organization extends Model
         // Service charge
         'service_charge_enabled',
         'service_charge_rate',
+        // Nomor Penanda Pesanan
+        'order_marker_mode',
+        'order_marker_max_number',
         // JSON
         'opening_hours',
         'settings',
@@ -56,6 +59,7 @@ class Organization extends Model
             'tax_rate'               => 'decimal:2',
             'service_charge_enabled' => 'boolean',
             'service_charge_rate'    => 'decimal:2',
+            'order_marker_max_number' => 'integer',
             'opening_hours'          => 'array',
             'settings'               => 'array',
         ];
