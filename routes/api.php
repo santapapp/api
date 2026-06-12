@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashierOrderController;
-use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\Customer\OrderReceiptController;
+use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DiningTableController;
 use App\Http\Controllers\Api\V1\KitchenOrderController;
 use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================================
@@ -78,6 +79,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
         // --- Kitchen ---
         Route::get('/kitchen/orders', [KitchenOrderController::class, 'index'])->name('kitchen.orders.index');
         Route::patch('/kitchen/order-items/{id}/status', [KitchenOrderController::class, 'updateItemStatus'])->name('kitchen.order-items.status');
+
+        // --- Reports (Owner) ---
+        Route::prefix('reports')->name('reports.')->group(function (): void {
+            Route::get('/financial/summary', [ReportController::class, 'financialSummary'])->name('financial.summary');
+            Route::get('/products/bestsellers', [ReportController::class, 'productBestsellers'])->name('products.bestsellers');
+            Route::get('/products/no-sales', [ReportController::class, 'productsNoSales'])->name('products.no-sales');
+            Route::get('/products/by-category', [ReportController::class, 'productSalesByCategory'])->name('products.by-category');
+            Route::get('/products/trend', [ReportController::class, 'productTrend'])->name('products.trend');
+            Route::get('/operational/by-cashier', [ReportController::class, 'operationalByCashier'])->name('operational.by-cashier');
+            Route::get('/operational/peak-hours', [ReportController::class, 'operationalPeakHours'])->name('operational.peak-hours');
+        });
     });
 });
 

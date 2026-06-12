@@ -4,31 +4,31 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\ServiceProvider;
-
+use App\Services\OrganizationContext;
 use Dedoc\Scramble\Scramble;
-use Illuminate\Routing\Route;
-use Illuminate\Support\Str;
 use Dedoc\Scramble\Support\Generator\OpenApi;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
-use Dedoc\Scramble\Support\Generator\SecurityRequirement;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Response as ScrambleResponse;
 use Dedoc\Scramble\Support\Generator\Schema;
+use Dedoc\Scramble\Support\Generator\SecurityRequirement;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\RouteInfo;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(\App\Services\OrganizationContext::class);
+        $this->app->singleton(OrganizationContext::class);
         Scramble::ignoreDefaultRoutes();
     }
 
@@ -72,7 +72,7 @@ class AppServiceProvider extends ServiceProvider
                     - `POST /v1/cashier/orders/{id}/pay-qris` mengunci order terkait saja. Jika order yang sama masih punya QRIS pending aktif, API mengembalikan QRIS existing.
                     - QRIS hanya bisa dibuat saat total > 0. Selama QRIS pending, penambahan/perubahan item diblokir.
                     MD,
-                'version'     => '1.0.0',
+                'version' => '1.0.0',
             ],
         ])->routes(function (Route $route) {
             return Str::startsWith($route->uri(), 'v1')
@@ -134,13 +134,14 @@ class AppServiceProvider extends ServiceProvider
             $uri = $routeInfo->route->uri();
             $tag = match (true) {
                 Str::contains($uri, ['pay-cash', 'pay-qris', 'qris-status', 'qris-cancel']) => 'Mobile Payment',
-                Str::startsWith($uri, 'v1/auth')           => 'Mobile Auth',
-                Str::startsWith($uri, 'v1/organizations')  => 'Mobile Organization',
-                Str::startsWith($uri, 'v1/menus')          => 'Mobile Menu',
-                Str::startsWith($uri, 'v1/dining-tables')  => 'Mobile Table',
-                Str::startsWith($uri, 'v1/kitchen')        => 'Mobile Kitchen',
-                Str::startsWith($uri, 'v1/cashier')        => 'Mobile Cashier Order',
-                default                                    => null,
+                Str::startsWith($uri, 'v1/auth') => 'Mobile Auth',
+                Str::startsWith($uri, 'v1/organizations') => 'Mobile Organization',
+                Str::startsWith($uri, 'v1/menus') => 'Mobile Menu',
+                Str::startsWith($uri, 'v1/dining-tables') => 'Mobile Table',
+                Str::startsWith($uri, 'v1/kitchen') => 'Mobile Kitchen',
+                Str::startsWith($uri, 'v1/cashier') => 'Mobile Cashier Order',
+                Str::startsWith($uri, 'v1/reports') => 'Mobile Reports',
+                default => null,
             };
 
             if ($tag !== null) {
@@ -177,7 +178,7 @@ class AppServiceProvider extends ServiceProvider
                     - **Cancel QRIS Attempt vs Cancel Open Bill:** Jika pelanggan membatalkan QRIS attempt (`DELETE /v1/customer/order/qris-cancel`), status pembayaran diset `cancelled` tapi sesi open bill tetap `open` dan `order_status` **TIDAK** dibatalkan (customer bisa memesan lagi atau generate QRIS baru).
                     - **Pelunasan:** Setelah QRIS sukses terbayar (settlement), status pembayaran otomatis disinkronkan, status pembayaran menjadi `paid`, status bill menjadi `closed`, dan sesi berakhir.
                     MD,
-                'version'     => '1.0.0',
+                'version' => '1.0.0',
             ],
         ])->routes(function (Route $route) {
             return Str::startsWith($route->uri(), 'v1/customer');
@@ -214,15 +215,15 @@ class AppServiceProvider extends ServiceProvider
             // dari flow open bill yang berbasis token.
             $uri = $routeInfo->route->uri();
             $tag = match (true) {
-                $hasCustomerToken                               => 'Customer Open Bill',
-                Str::contains($uri, 'payment-status')           => 'Customer Payment',
-                Str::contains($uri, 'receipt/download')         => 'Customer Receipt',
-                Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
-                Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
-                Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
-                Str::contains($uri, 'v1/customer/table')        => 'Customer Table',
+                $hasCustomerToken => 'Customer Open Bill',
+                Str::contains($uri, 'payment-status') => 'Customer Payment',
+                Str::contains($uri, 'receipt/download') => 'Customer Receipt',
+                Str::contains($uri, 'v1/customer/orders') => 'Customer Order Tracking',
+                Str::contains($uri, 'v1/customer/order') => 'Customer Table Order',
+                Str::contains($uri, 'v1/customer/menu') => 'Customer Menu',
+                Str::contains($uri, 'v1/customer/table') => 'Customer Table',
                 Str::contains($uri, 'v1/customer/organization') => 'Customer Organization',
-                default                                         => null,
+                default => null,
             };
 
             if ($tag !== null) {
@@ -231,7 +232,6 @@ class AppServiceProvider extends ServiceProvider
 
             $this->describeCustomerOperation($operation, $uri, $hasCustomerToken);
         });
-
 
         // ── Scramble: Admin / Full API ────────────────────────────────
         // Dokumentasi paling lengkap untuk admin/dashboard: mencakup SELURUH
@@ -252,7 +252,7 @@ class AppServiceProvider extends ServiceProvider
                     - Ketika open bill dibatalkan (baik via API cashier maupun aksi di Filament backoffice), status order dan payment diset `cancelled`, status bill ditutup (`bill_status = closed`), dan sesi customer diblokir secara real-time.
                     - Detail siklus hidup status, alur QRIS, dan payload item sama dengan dokumentasi pada group Mobile dan Web Customer.
                     MD,
-                'version'     => '1.0.0',
+                'version' => '1.0.0',
             ],
         ])->routes(function (Route $route) {
             return Str::startsWith($route->uri(), 'v1');
@@ -269,7 +269,7 @@ class AppServiceProvider extends ServiceProvider
             );
         })->withOperationTransformers(function (Operation $operation, RouteInfo $routeInfo) {
             $middleware = $routeInfo->route->gatherMiddleware();
-            $uri        = $routeInfo->route->uri();
+            $uri = $routeInfo->route->uri();
 
             $hasSanctum = collect($middleware)->contains(function ($m) {
                 return $m === 'auth:sanctum' || (is_string($m) && str_starts_with($m, 'auth:'));
@@ -324,26 +324,27 @@ class AppServiceProvider extends ServiceProvider
             // ── Tag: pisahkan flow customer dari staff agar dokumentasi rapi ──
             if (Str::startsWith($uri, 'v1/customer')) {
                 $tag = match (true) {
-                    $hasCustomerToken                               => 'Customer Open Bill',
-                    Str::contains($uri, 'payment-status')           => 'Customer Payment',
-                    Str::contains($uri, 'receipt/download')         => 'Customer Receipt',
-                    Str::contains($uri, 'v1/customer/orders')       => 'Customer Order Tracking',
-                    Str::contains($uri, 'v1/customer/order')        => 'Customer Table Order',
-                    Str::contains($uri, 'v1/customer/menu')         => 'Customer Menu',
-                    Str::contains($uri, 'v1/customer/table')        => 'Customer Table',
+                    $hasCustomerToken => 'Customer Open Bill',
+                    Str::contains($uri, 'payment-status') => 'Customer Payment',
+                    Str::contains($uri, 'receipt/download') => 'Customer Receipt',
+                    Str::contains($uri, 'v1/customer/orders') => 'Customer Order Tracking',
+                    Str::contains($uri, 'v1/customer/order') => 'Customer Table Order',
+                    Str::contains($uri, 'v1/customer/menu') => 'Customer Menu',
+                    Str::contains($uri, 'v1/customer/table') => 'Customer Table',
                     Str::contains($uri, 'v1/customer/organization') => 'Customer Organization',
-                    default                                         => null,
+                    default => null,
                 };
             } else {
                 $tag = match (true) {
                     Str::contains($uri, ['pay-cash', 'pay-qris', 'qris-status', 'qris-cancel']) => 'Staff Payment',
-                    Str::startsWith($uri, 'v1/auth')           => 'Staff Auth',
-                    Str::startsWith($uri, 'v1/organizations')  => 'Staff Organization',
-                    Str::startsWith($uri, 'v1/menus')          => 'Staff Menu',
-                    Str::startsWith($uri, 'v1/dining-tables')  => 'Staff Table',
-                    Str::startsWith($uri, 'v1/kitchen')        => 'Staff Kitchen',
-                    Str::startsWith($uri, 'v1/cashier')        => 'Staff Cashier Order',
-                    default                                    => null,
+                    Str::startsWith($uri, 'v1/auth') => 'Staff Auth',
+                    Str::startsWith($uri, 'v1/organizations') => 'Staff Organization',
+                    Str::startsWith($uri, 'v1/menus') => 'Staff Menu',
+                    Str::startsWith($uri, 'v1/dining-tables') => 'Staff Table',
+                    Str::startsWith($uri, 'v1/kitchen') => 'Staff Kitchen',
+                    Str::startsWith($uri, 'v1/cashier') => 'Staff Cashier Order',
+                    Str::startsWith($uri, 'v1/reports') => 'Staff Reports',
+                    default => null,
                 };
             }
 
@@ -357,7 +358,6 @@ class AppServiceProvider extends ServiceProvider
                 $this->describeStaffOperation($operation, $uri);
             }
         });
-
 
         // ── Scramble UI & JSON Spec Routes ────────────────────────────
         Scramble::registerUiRoute('docs/api/mobile', api: 'mobile');
@@ -396,14 +396,14 @@ class AppServiceProvider extends ServiceProvider
             // ── Auth ─────────────────────────────────────────────────────────
             $uri === 'v1/auth/login' && $method === 'post' => [
                 'Login staff',
-                'Autentikasi staff (owner / cashier / kitchen). Response menyertakan data user, daftar organisasi beserta `role` per organisasi, dan Bearer token. ' .
-                'Masukkan token ke tombol **Authorize** sebagai Bearer Token untuk mengakses endpoint lain. ' .
+                'Autentikasi staff (owner / cashier / kitchen). Response menyertakan data user, daftar organisasi beserta `role` per organisasi, dan Bearer token. '.
+                'Masukkan token ke tombol **Authorize** sebagai Bearer Token untuk mengakses endpoint lain. '.
                 'Token tidak memiliki masa berlaku bawaan — gunakan `POST /v1/auth/logout` untuk mencabutnya.',
                 'Email atau password salah.',
             ],
             $uri === 'v1/auth/logout' && $method === 'post' => [
                 'Logout staff',
-                'Mencabut (revoke) Bearer token yang sedang dipakai. Setelah logout, token tidak bisa dipakai lagi. ' .
+                'Mencabut (revoke) Bearer token yang sedang dipakai. Setelah logout, token tidak bisa dipakai lagi. '.
                 'Untuk multi-device logout, lakukan request dari masing-masing perangkat atau hapus semua token via Filament admin.',
                 null,
             ],
@@ -414,13 +414,13 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/auth/profile' && $method === 'put' => [
                 'Update user profile',
-                'Update data profil user yang sedang login: nama, nomor telepon, dan/atau avatar URL. ' .
+                'Update data profil user yang sedang login: nama, nomor telepon, dan/atau avatar URL. '.
                 'Untuk upload file avatar, gunakan endpoint terpisah `POST /v1/auth/profile/avatar`.',
                 'Field tidak valid (mis. email duplikat, format telepon salah).',
             ],
             $uri === 'v1/auth/profile/avatar' && $method === 'post' => [
                 'Upload user avatar',
-                'Upload foto profil user (multipart/form-data). Field file: `avatar` (jpeg/jpg/png/webp, maks 2 MB). ' .
+                'Upload foto profil user (multipart/form-data). Field file: `avatar` (jpeg/jpg/png/webp, maks 2 MB). '.
                 'File lama otomatis dihapus dari storage. Response berisi data user terbaru dengan field `avatar` berisi URL siap pakai.',
                 'File tidak ada, bukan gambar, atau ukuran > 2 MB.',
             ],
@@ -428,40 +428,40 @@ class AppServiceProvider extends ServiceProvider
             // ── Organization ──────────────────────────────────────────────────
             $uri === 'v1/organizations' && $method === 'get' => [
                 'List my organizations',
-                'Mengembalikan semua organisasi yang diikuti user yang sedang login. ' .
+                'Mengembalikan semua organisasi yang diikuti user yang sedang login. '.
                 'Setiap item menyertakan field `role` (owner/cashier/kitchen) yang menunjukkan peran user pada organisasi tersebut.',
                 null,
             ],
             $uri === 'v1/organizations' && $method === 'post' => [
                 'Create organization',
-                'Membuat organisasi baru. User pembuat otomatis menjadi `owner` dari organisasi yang dibuat. ' .
+                'Membuat organisasi baru. User pembuat otomatis menjadi `owner` dari organisasi yang dibuat. '.
                 '`slug` harus unik dan hanya boleh mengandung huruf kecil, angka, dan tanda hubung.',
                 'Nama atau slug tidak valid, atau slug sudah dipakai organisasi lain.',
             ],
             $uri === 'v1/organizations/current' && $method === 'get' => [
                 'Get current organization',
-                'Mengambil detail organisasi aktif berdasarkan header `X-Org-ID`. ' .
-                'Response menyertakan konfigurasi lengkap termasuk pajak, service charge, dan field `order_marker` untuk fitur Nomor Penanda Pesanan: ' .
+                'Mengambil detail organisasi aktif berdasarkan header `X-Org-ID`. '.
+                'Response menyertakan konfigurasi lengkap termasuk pajak, service charge, dan field `order_marker` untuk fitur Nomor Penanda Pesanan: '.
                 '`mode` (disabled/optional/required), `max_number` (batas atas nomor yang diizinkan), dan `label`.',
                 null,
             ],
             $uri === 'v1/organizations/current' && $method === 'put' => [
                 'Update organization settings',
-                'Update pengaturan organisasi aktif. Hanya member dengan role `owner` yang diizinkan.' . "\n\n" .
-                '**Nomor Penanda Pesanan:** Atur via field `order_marker_mode` (`disabled`/`optional`/`required`) dan `order_marker_max_number` (integer, min 1, maks 9999). ' .
-                'Jika `order_marker_mode` diset ke `disabled`, `order_marker_max_number` dikosongkan otomatis.' . "\n\n" .
+                'Update pengaturan organisasi aktif. Hanya member dengan role `owner` yang diizinkan.'."\n\n".
+                '**Nomor Penanda Pesanan:** Atur via field `order_marker_mode` (`disabled`/`optional`/`required`) dan `order_marker_max_number` (integer, min 1, maks 9999). '.
+                'Jika `order_marker_mode` diset ke `disabled`, `order_marker_max_number` dikosongkan otomatis.'."\n\n".
                 '**Gambar:** Gunakan endpoint upload khusus (`POST /logo`, `POST /banner`) — field ini menerima URL string, bukan file.',
                 'Field tidak valid, atau Anda bukan owner organisasi ini.',
             ],
             $uri === 'v1/organizations/current/logo' && $method === 'post' => [
                 'Upload organization logo',
-                'Upload logo organisasi aktif (multipart/form-data). Hanya owner. ' .
+                'Upload logo organisasi aktif (multipart/form-data). Hanya owner. '.
                 'Field file: `logo` (jpeg/jpg/png/webp, maks 2 MB). Logo lama otomatis dihapus dari storage.',
                 'File tidak ada, bukan gambar, ukuran > 2 MB, atau Anda bukan owner.',
             ],
             $uri === 'v1/organizations/current/banner' && $method === 'post' => [
                 'Upload organization banner',
-                'Upload banner/foto sampul organisasi aktif (multipart/form-data). Hanya owner. ' .
+                'Upload banner/foto sampul organisasi aktif (multipart/form-data). Hanya owner. '.
                 'Field file: `banner` (jpeg/jpg/png/webp, maks 2 MB). Banner lama otomatis dihapus dari storage.',
                 'File tidak ada, bukan gambar, ukuran > 2 MB, atau Anda bukan owner.',
             ],
@@ -469,15 +469,15 @@ class AppServiceProvider extends ServiceProvider
             // ── Dining Table ──────────────────────────────────────────────────
             $uri === 'v1/dining-tables' && $method === 'get' => [
                 'List dining tables',
-                'Mengembalikan semua meja organisasi aktif diurutkan berdasarkan nama. ' .
-                'Setiap meja menyertakan `qr_token` yang dipakai customer untuk mengakses menu via QR code. ' .
+                'Mengembalikan semua meja organisasi aktif diurutkan berdasarkan nama. '.
+                'Setiap meja menyertakan `qr_token` yang dipakai customer untuk mengakses menu via QR code. '.
                 'Endpoint ini **berbeda** dari fitur Nomor Penanda Pesanan (`order_marker_number`) — `dining_tables` adalah data master meja fisik.',
                 null,
             ],
             $uri === 'v1/dining-tables' && $method === 'post' => [
                 'Create dining table',
-                'Membuat meja baru. `qr_token` digenerate otomatis (32 karakter random). ' .
-                'URL QR untuk customer: `{APP_URL}/t/{qr_token}`. ' .
+                'Membuat meja baru. `qr_token` digenerate otomatis (32 karakter random). '.
+                'URL QR untuk customer: `{APP_URL}/t/{qr_token}`. '.
                 'Gunakan `POST /{id}/regenerate-qr` untuk mereset QR token jika diperlukan.',
                 'Field tidak valid atau nama/kode meja sudah dipakai di organisasi ini.',
             ],
@@ -493,7 +493,7 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/dining-tables/{id}/regenerate-qr' && $method === 'post' => [
                 'Regenerate QR token',
-                'Mereset `qr_token` meja dengan token baru (32 karakter random). Token lama otomatis tidak berlaku — semua link QR lama yang sudah dicetak tidak akan berfungsi lagi. ' .
+                'Mereset `qr_token` meja dengan token baru (32 karakter random). Token lama otomatis tidak berlaku — semua link QR lama yang sudah dicetak tidak akan berfungsi lagi. '.
                 'Gunakan ini jika QR code bocor atau meja berpindah tempat.',
                 null,
             ],
@@ -501,44 +501,44 @@ class AppServiceProvider extends ServiceProvider
             // ── Menu ──────────────────────────────────────────────────────────
             $uri === 'v1/menus' && $method === 'get' => [
                 'List menus (tree)',
-                'Mengembalikan semua produk beserta variant/addon dalam struktur tree 2 level. ' .
-                'Struktur: `product` → `variant_group`/`addon_group` → `variant`/`addon`. ' .
+                'Mengembalikan semua produk beserta variant/addon dalam struktur tree 2 level. '.
+                'Struktur: `product` → `variant_group`/`addon_group` → `variant`/`addon`. '.
                 'Urutan berdasarkan `sort_order`. Hanya produk root (`type = product`) yang dikembalikan sebagai root item — children di-load via eager loading.',
                 null,
             ],
             $uri === 'v1/menus' && $method === 'post' => [
                 'Create menu item',
-                'Membuat menu baru. Hierarki yang diizinkan:' . "\n" .
-                '- `product` → tidak boleh punya parent' . "\n" .
-                '- `variant_group` / `addon_group` → parent harus `product`' . "\n" .
-                '- `variant` → parent harus `variant_group`' . "\n" .
-                '- `addon` → parent harus `addon_group`' . "\n\n" .
-                'Field `is_required`, `min_select`, `max_select` hanya relevan untuk grup (variant_group/addon_group). ' .
+                'Membuat menu baru. Hierarki yang diizinkan:'."\n".
+                '- `product` → tidak boleh punya parent'."\n".
+                '- `variant_group` / `addon_group` → parent harus `product`'."\n".
+                '- `variant` → parent harus `variant_group`'."\n".
+                '- `addon` → parent harus `addon_group`'."\n\n".
+                'Field `is_required`, `min_select`, `max_select` hanya relevan untuk grup (variant_group/addon_group). '.
                 'Untuk upload gambar, gunakan `POST /v1/menus/{id}/image` setelah menu dibuat.',
                 'Tipe tidak valid, hierarki parent-child tidak sesuai, atau parent bukan milik organisasi ini.',
             ],
             $uri === 'v1/menus/{id}' && $method === 'put' => [
                 'Update menu item',
-                'Update data menu (nama, harga, deskripsi, SKU, sort order, ketersediaan, dll). ' .
+                'Update data menu (nama, harga, deskripsi, SKU, sort order, ketersediaan, dll). '.
                 'Response menyertakan children 2 level. Untuk pindah parent atau ganti gambar, gunakan endpoint terpisah.',
                 'Field tidak valid atau menu tidak ditemukan di organisasi ini.',
             ],
             $uri === 'v1/menus/{id}' && $method === 'delete' => [
                 'Delete menu item',
-                'Menghapus menu beserta seluruh children-nya secara cascade (via foreign key). ' .
+                'Menghapus menu beserta seluruh children-nya secara cascade (via foreign key). '.
                 'Menghapus `product` akan otomatis menghapus semua `variant_group`, `addon_group`, `variant`, dan `addon` di bawahnya.',
                 null,
             ],
             $uri === 'v1/menus/{id}/image' && $method === 'post' => [
                 'Upload menu image',
-                'Upload gambar produk (multipart/form-data). Field file: `image` (jpeg/jpg/png/webp, maks 2 MB). ' .
+                'Upload gambar produk (multipart/form-data). Field file: `image` (jpeg/jpg/png/webp, maks 2 MB). '.
                 'Gambar lama otomatis dihapus dari storage. Response berisi data menu terbaru dengan field `image` berisi URL siap pakai.',
                 'File tidak ada, bukan gambar, atau ukuran > 2 MB.',
             ],
             $uri === 'v1/menus/{id}/toggle' && $method === 'patch' => [
                 'Toggle menu availability',
-                'Toggle ketersediaan menu (`is_available`) antara aktif dan nonaktif. ' .
-                'Menu yang nonaktif tidak akan muncul di halaman pelanggan (`GET /v1/customer/menu`). ' .
+                'Toggle ketersediaan menu (`is_available`) antara aktif dan nonaktif. '.
+                'Menu yang nonaktif tidak akan muncul di halaman pelanggan (`GET /v1/customer/menu`). '.
                 'Idempotent — bisa dipanggil berulang untuk flip status.',
                 null,
             ],
@@ -546,18 +546,18 @@ class AppServiceProvider extends ServiceProvider
             // ── Kitchen ───────────────────────────────────────────────────────
             $uri === 'v1/kitchen/orders' && $method === 'get' => [
                 'Kitchen order queue',
-                'Antrian order untuk layar dapur. Mengembalikan order dengan `order_status` `confirmed` atau `preparing`, ' .
-                'diurutkan berdasarkan waktu masuk (FIFO). Cocok untuk polling layar dapur setiap beberapa detik. ' .
+                'Antrian order untuk layar dapur. Mengembalikan order dengan `order_status` `confirmed` atau `preparing`, '.
+                'diurutkan berdasarkan waktu masuk (FIFO). Cocok untuk polling layar dapur setiap beberapa detik. '.
                 'Setiap order menyertakan item dan data meja.',
                 null,
             ],
             $uri === 'v1/kitchen/order-items/{id}/status' && $method === 'patch' => [
                 'Update order item status',
-                'Update status satu item order dari dapur. Nilai `item_status` yang valid: `preparing`, `ready`, `served`, `cancelled`.' . "\n\n" .
-                '**Item-driven status rollup:** setelah item diupdate, `order_status` parent diturunkan otomatis dari agregat semua item:' . "\n" .
-                '- Semua `served` → `completed`' . "\n" .
-                '- Semua `ready` → `ready`' . "\n" .
-                '- Ada yang `preparing` → `preparing`' . "\n" .
+                'Update status satu item order dari dapur. Nilai `item_status` yang valid: `preparing`, `ready`, `served`, `cancelled`.'."\n\n".
+                '**Item-driven status rollup:** setelah item diupdate, `order_status` parent diturunkan otomatis dari agregat semua item:'."\n".
+                '- Semua `served` → `completed`'."\n".
+                '- Semua `ready` → `ready`'."\n".
+                '- Ada yang `preparing` → `preparing`'."\n".
                 '- Sisanya → `confirmed`',
                 'Item tidak ditemukan atau status tidak valid.',
             ],
@@ -571,15 +571,15 @@ class AppServiceProvider extends ServiceProvider
             $uri === 'v1/cashier/orders' && $method === 'post' => [
 
                 'Create cashier/open bill order',
-                'Membuat order kasir atau open bill. Untuk open bill, pastikan menyuplai body request: ' . "\n" .
-                '`{ "order_type": "open_bill", "dining_table_id": 1, "customer_name": "Ilham", "customer_phone": "087xxxx", "note": "Opsional" }`. ' . "\n" .
-                'API akan menghasilkan order dengan `bill_status = open` dan `public_token` sebagai penanda QR Session bagi customer.' . "\n\n" .
-                '**Nomor Penanda Pesanan (`order_marker_number`):** Field integer opsional untuk nomor fisik (akrilik, table tent, nomor panggilan). ' .
-                'Perilaku bergantung pada `order_marker_mode` di konfigurasi organisasi: ' .
-                '`disabled` — field diabaikan (disimpan null); ' .
-                '`optional` — boleh diisi angka 1 s.d. `order_marker_max_number`; ' .
-                '`required` — wajib diisi. ' .
-                'Baca konfigurasi dari `GET /v1/organizations/current` → field `order_marker`. ' .
+                'Membuat order kasir atau open bill. Untuk open bill, pastikan menyuplai body request: '."\n".
+                '`{ "order_type": "open_bill", "dining_table_id": 1, "customer_name": "Ilham", "customer_phone": "087xxxx", "note": "Opsional" }`. '."\n".
+                'API akan menghasilkan order dengan `bill_status = open` dan `public_token` sebagai penanda QR Session bagi customer.'."\n\n".
+                '**Nomor Penanda Pesanan (`order_marker_number`):** Field integer opsional untuk nomor fisik (akrilik, table tent, nomor panggilan). '.
+                'Perilaku bergantung pada `order_marker_mode` di konfigurasi organisasi: '.
+                '`disabled` — field diabaikan (disimpan null); '.
+                '`optional` — boleh diisi angka 1 s.d. `order_marker_max_number`; '.
+                '`required` — wajib diisi. '.
+                'Baca konfigurasi dari `GET /v1/organizations/current` → field `order_marker`. '.
                 'Field ini **tidak berhubungan** dengan `dining_table_id` dan tidak ada master data nomor di database.',
                 'Meja tidak valid, meja sudah memiliki open bill aktif, atau `order_marker_number` tidak sesuai aturan konfigurasi organisasi.',
             ],
@@ -630,7 +630,7 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/cashier/orders/{id}/confirm' && $method === 'post' => [
                 'Confirm order',
-                'Memajukan order dari status `pending` ke `confirmed`. Setelah dikonfirmasi, item masuk antrian dapur (`GET /v1/kitchen/orders`). ' .
+                'Memajukan order dari status `pending` ke `confirmed`. Setelah dikonfirmasi, item masuk antrian dapur (`GET /v1/kitchen/orders`). '.
                 'Tidak bisa dilakukan jika order sudah bukan `pending`.',
                 'Order tidak dalam status pending.',
             ],
@@ -638,6 +638,54 @@ class AppServiceProvider extends ServiceProvider
                 'Cancel order',
                 'Membatalkan order yang belum paid/completed. Jika ada QRIS pending, sistem mencoba cancel provider dan mengarsipkan attempt sebelum order dicancel. Khusus tipe open_bill, pembatalan order ini akan otomatis menutup sesi bill (bill_status = closed, closed_at = now) sehingga QR session tidak valid lagi dan customer tidak bisa menambah item.',
                 'Order sudah paid/completed/cancelled atau alasan cancel tidak valid.',
+            ],
+
+            // Reports
+            $uri === 'v1/reports/financial/summary' && $method === 'get' => [
+                'Financial report summary',
+                'Ringkasan finansial organisasi aktif. Hanya role `owner` yang diizinkan. '.
+                'Filter wajib `start_date` dan `end_date` memakai format `YYYY-MM-DD`, maksimal 365 hari, dan dibaca dalam timezone organisasi. '.
+                'Revenue hanya dari order `payment_status = paid` dengan basis tanggal `paid_at`; failed/expired/pending QRIS tidak dihitung. '.
+                'Cancelled summary dihitung terpisah memakai `cancelled_at`, sehingga order batal tanpa `paid_at` tetap dapat masuk ringkasan batal. '.
+                'Response mengembalikan integer Rupiah untuk subtotal, discount, tax, service charge, total revenue, breakdown payment method, order type, dan periode zero-filled.',
+                '`start_date`, `end_date`, atau `group_by` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/products/bestsellers' && $method === 'get' => [
+                'Product bestsellers report',
+                'Top produk berdasarkan root `order_items` yang valid pada order paid dalam rentang `paid_at`. '.
+                'Item `cancelled` dikecualikan. Revenue produk memakai snapshot `order_items.subtotal`, bukan harga menu terkini. '.
+                'Variant/addon yang dipilih masuk ke revenue produk induk karena subtotal root item menyimpan base price plus option delta. `limit` default 10 dan maksimal 50.',
+                '`start_date`, `end_date`, atau `limit` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/products/no-sales' && $method === 'get' => [
+                'Products with no sales report',
+                'Daftar produk root yang masih tersedia di katalog organisasi aktif tetapi tidak punya item valid pada order paid dalam periode. '.
+                '`last_sold_date` dihitung dari paid sale terakhir sampai `end_date`, bukan hanya dari periode filter, dan dilakukan tanpa query per produk.',
+                '`start_date` atau `end_date` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/products/by-category' && $method === 'get' => [
+                'Product sales by category report',
+                'Agregasi penjualan produk per kategori. Schema Santap saat ini tidak memiliki relasi kategori menu setelah restructure, sehingga semua produk digabung dalam bucket `Uncategorized`. '.
+                'Percentage berdasarkan revenue produk dan bernilai 0 saat total revenue nol.',
+                '`start_date` atau `end_date` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/products/trend' && $method === 'get' => [
+                'Product daily trend report',
+                'Trend harian satu produk pada organisasi aktif. Produk divalidasi dengan scope organisasi sehingga produk organisasi lain akan terlihat sebagai not found. '.
+                'Tanggal tanpa penjualan diisi `qty: 0` dan `revenue: 0`. Revenue memakai snapshot order item pada order paid.',
+                '`product_id`, `start_date`, atau `end_date` tidak valid, rentang lebih dari 365 hari, produk tidak ditemukan, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/operational/by-cashier' && $method === 'get' => [
+                'Operational report by cashier',
+                'Performa operasional berdasarkan `orders.created_by` karena schema orders saat ini tidak memiliki `paid_by` atau `closed_by`. '.
+                'Hanya order paid dalam rentang `paid_at` yang dihitung. Order self-service atau creator yang bukan member organisasi digabung ke bucket `Unassigned`, tidak dikaitkan diam-diam ke staff lain.',
+                '`start_date` atau `end_date` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
+            ],
+            $uri === 'v1/reports/operational/peak-hours' && $method === 'get' => [
+                'Operational peak hours report',
+                'Distribusi transaksi paid per jam lokal organisasi berdasarkan `paid_at`. Query PostgreSQL memakai `EXTRACT(HOUR FROM timezone(...))`, bukan fungsi MySQL. '.
+                'Response selalu berisi jam 0 sampai 23 agar chart frontend stabil.',
+                '`start_date` atau `end_date` tidak valid, rentang lebih dari 365 hari, atau user bukan owner organisasi.',
             ],
             default => [null, null, null],
         };
@@ -657,20 +705,20 @@ class AppServiceProvider extends ServiceProvider
             // ── Customer Public ────────────────────────────────────────────────
             $uri === 'v1/customer/organization/{slug}' && $method === 'get' => [
                 'Get organization info by slug',
-                'Mengambil informasi publik organisasi berdasarkan `slug`. Dipakai customer web untuk menampilkan nama, logo, dan konfigurasi restoran sebelum meja di-scan. ' .
+                'Mengambil informasi publik organisasi berdasarkan `slug`. Dipakai customer web untuk menampilkan nama, logo, dan konfigurasi restoran sebelum meja di-scan. '.
                 'Response berisi field `order_marker` yang memuat mode Nomor Penanda Pesanan. Tidak memerlukan autentikasi.',
                 'Organisasi dengan slug tersebut tidak ditemukan atau tidak aktif.',
             ],
             $uri === 'v1/customer/table/{qrToken}' && $method === 'get' => [
                 'Scan QR table',
-                'Memvalidasi QR token meja dan mengembalikan informasi meja beserta menu restoran. Dipakai customer web/mobile saat memindai QR code di meja. ' .
-                'Jika meja memiliki open bill aktif (`bill_status = open`), response menyertakan `public_token` untuk dipakai di endpoint open bill. ' .
+                'Memvalidasi QR token meja dan mengembalikan informasi meja beserta menu restoran. Dipakai customer web/mobile saat memindai QR code di meja. '.
+                'Jika meja memiliki open bill aktif (`bill_status = open`), response menyertakan `public_token` untuk dipakai di endpoint open bill. '.
                 'Tidak memerlukan autentikasi.',
                 'QR token tidak valid, meja tidak aktif, atau meja tidak ditemukan.',
             ],
             $uri === 'v1/customer/menu' && $method === 'get' => [
                 'Get public menu',
-                'Mengambil daftar menu yang tersedia untuk customer berdasarkan organisasi dari QR token meja. ' .
+                'Mengambil daftar menu yang tersedia untuk customer berdasarkan organisasi dari QR token meja. '.
                 'Hanya menampilkan menu dengan `is_available = true` dalam struktur tree (product → variant/addon). Tidak memerlukan autentikasi.',
                 null,
             ],
@@ -718,9 +766,9 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/customer/orders/{order}/receipt/download' && $method === 'get' => [
                 'Download payment receipt PDF',
-                'Mengunduh struk pembayaran dalam format PDF untuk order yang sudah lunas (`payment_status = paid`). ' .
-                'Struk berisi detail pesanan (item, harga, pajak, service charge), data pembayaran, informasi meja, dan branding organisasi. ' .
-                'Gunakan `order_number` (contoh: `ORD-20260609-0001`) atau `public_token` sebagai parameter `{order}`. ' .
+                'Mengunduh struk pembayaran dalam format PDF untuk order yang sudah lunas (`payment_status = paid`). '.
+                'Struk berisi detail pesanan (item, harga, pajak, service charge), data pembayaran, informasi meja, dan branding organisasi. '.
+                'Gunakan `order_number` (contoh: `ORD-20260609-0001`) atau `public_token` sebagai parameter `{order}`. '.
                 'Tidak memerlukan autentikasi — endpoint publik. Response bertipe `application/pdf`.',
                 'Order tidak ditemukan atau belum lunas (payment_status bukan paid).',
             ],
