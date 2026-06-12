@@ -30,12 +30,20 @@ class OrderLifecycleService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (in_array($locked->order_status, [OrderStatus::Completed, OrderStatus::Cancelled], true)) {
+            if ($locked->order_status === OrderStatus::Cancelled) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'order' => 'Pesanan sudah dibatalkan.',
+                ]);
+            }
+
+            if (in_array($locked->order_status, [OrderStatus::Completed], true)) {
                 return $locked;
             }
 
             if ($locked->payment_status === PaymentStatus::Paid) {
-                return $locked;
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'order' => 'Pesanan yang sudah dibayar tidak dapat dibatalkan.',
+                ]);
             }
 
             // Batalkan QRIS payment attempt jika berstatus Pending

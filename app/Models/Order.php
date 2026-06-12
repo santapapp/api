@@ -201,6 +201,12 @@ class Order extends Model
     public function markPaid(bool $closeBill = false): void
     {
         if ($this->payment_status === PaymentStatus::Paid) {
+            if ($closeBill && $this->bill_status !== BillStatus::Closed) {
+                $this->update([
+                    'bill_status' => BillStatus::Closed,
+                    'closed_at'   => $this->closed_at ?? now(),
+                ]);
+            }
             return;
         }
 

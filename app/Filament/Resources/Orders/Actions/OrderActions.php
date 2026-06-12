@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Orders\Actions;
 
+use App\Enums\BillStatus;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
@@ -102,11 +103,11 @@ class OrderActions
             ->label('Batalkan Pesanan')
             ->icon('heroicon-o-x-circle')
             ->color('danger')
-            ->visible(fn (Order $record): bool => ! in_array(
-                $record->order_status,
-                [OrderStatus::Completed, OrderStatus::Cancelled],
-                true,
-            ))
+            ->visible(fn (Order $record): bool => 
+                ! in_array($record->order_status, [OrderStatus::Completed, OrderStatus::Cancelled], true)
+                && $record->payment_status !== PaymentStatus::Paid
+                && $record->bill_status !== BillStatus::Closed
+            )
             ->schema([
                 Textarea::make('cancel_reason')
                     ->label('Alasan Pembatalan')
