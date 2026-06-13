@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\OpenBillSessions\Tables;
 
+use App\Enums\BillStatus;
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Models\Order;
+use App\Support\Orders\OrderItemBatchSummary;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -20,7 +24,7 @@ class OpenBillSessionsTable
             // Eager load relasi untuk hindari N+1. Base filter open_bill+open
             // sudah diterapkan di OpenBillSessionResource::getEloquentQuery().
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                ->with(['organization', 'diningTable', 'createdBy'])
+                ->with(['organization', 'diningTable', 'createdBy', 'items'])
                 ->withCount('items'))
             ->defaultSort('created_at', 'desc')
             ->poll('30s')
@@ -70,6 +74,34 @@ class OpenBillSessionsTable
                     ->alignCenter()
                     ->badge()
                     ->color('gray'),
+                TextColumn::make('batch_count')
+                    ->label('Pesanan')
+                    ->state(fn (Order $record): int => OrderItemBatchSummary::count($record->items))
+                    ->formatStateUsing(fn (int $state): string => $state.' Pesanan')
+                    ->badge()
+                    ->color('primary'),
+                TextColumn::make('latest_batch')
+                    ->label('Pesanan Terbaru')
+                    ->state(function (Order $record): string {
+                        $latest = OrderItemBatchSummary::latest($record->items);
+
+                        if ($latest === null) {
+                            return '-';
+                        }
+
+                        return sprintf(
+                            '%s - %s item - Rp %s',
+                            $latest['label'],
+                            $latest['items_count'],
+                            number_format((float) $latest['total_amount'], 0, ',', '.')
+                        );
+                    })
+                    ->description(function (Order $record): ?string {
+                        $latest = OrderItemBatchSummary::latest($record->items);
+
+                        return $latest ? $latest['submitted_at'] : null;
+                    })
+                    ->wrap(),
 
                 TextColumn::make('total_amount')
                     ->label('Total Sementara')
@@ -108,14 +140,13 @@ class OpenBillSessionsTable
                     ->label('Lihat QR')
                     ->icon('heroicon-o-qr-code')
                     ->color('success')
-                    ->modalHeading(fn (Order $record): string => 'QR Open Bill — ' . $record->order_number)
+                    ->modalHeading(fn (Order $record): string => 'QR Open Bill — '.$record->order_number)
                     ->modalWidth('md')
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup')
-                    ->visible(fn (Order $record): bool => 
-                        $record->order_type === \App\Enums\OrderType::OpenBill &&
-                        $record->bill_status === \App\Enums\BillStatus::Open &&
-                        $record->order_status !== \App\Enums\OrderStatus::Cancelled &&
+                    ->visible(fn (Order $record): bool => $record->order_type === OrderType::OpenBill &&
+                        $record->bill_status === BillStatus::Open &&
+                        $record->order_status !== OrderStatus::Cancelled &&
                         $record->cancelled_at === null &&
                         $record->closed_at === null &&
                         filled($record->public_token)
@@ -126,9 +157,9 @@ class OpenBillSessionsTable
                             'record' => $record,
                             // URL join open bill customer. Format ?bill={public_token}
                             // konsisten dengan jalur 'bill' di frontend santap_web.
-                            'qrUrl'  => rtrim(config('services.santap.web_url'), '/')
-                                . '/o/' . $record->organization->slug
-                                . '/orders?bill=' . $record->public_token,
+                            'qrUrl' => rtrim(config('services.santap.web_url'), '/')
+                                .'/o/'.$record->organization->slug
+                                .'/orders?bill='.$record->public_token,
                         ]
                     )),
             ])

@@ -15,21 +15,24 @@ class OrderItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'          => $this->id,
-            'item_type'   => $this->item_type,
-            'menu_id'     => $this->menu_id,
-            'name'        => $this->name,
+            'id' => $this->id,
+            'item_type' => $this->item_type,
+            'menu_id' => $this->menu_id,
+            'name' => $this->name,
 
             // Harga breakdown
-            'base_price'    => self::num($this->base_price),
+            'base_price' => self::num($this->base_price),
             'variant_total' => self::num($this->variant_total),
-            'unit_price'    => self::num($this->unit_price),
-            'price'         => self::num($this->price),    // legacy — sama dengan unit_price
-            'quantity'      => $this->quantity,
-            'subtotal'      => self::num($this->subtotal),
+            'unit_price' => self::num($this->unit_price),
+            'price' => self::num($this->price),    // legacy — sama dengan unit_price
+            'quantity' => $this->quantity,
+            'subtotal' => self::num($this->subtotal),
 
             'item_status' => $this->item_status,
-            'note'        => $this->note,
+            'note' => $this->note,
+            'batch_uuid' => $this->batch_uuid,
+            'batch_number' => $this->batch_number,
+            'submitted_at' => $this->submitted_at?->toIso8601String(),
 
             // Snapshot pilihan variant/addon — diambil dari metadata
             'selected_options' => $this->metadata['selected_options'] ?? [],

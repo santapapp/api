@@ -44,21 +44,21 @@ class CustomerController extends Controller
 
         return response()->json([
             'data' => [
-                'id'            => $org->id,
-                'name'          => $org->name,
-                'slug'          => $org->slug,
-                'phone'         => $org->phone,
-                'address'       => $org->address,
-                'city'          => $org->city,
-                'logo'          => MediaService::toUrl($org->logo),
-                'timezone'      => $org->timezone,
-                'currency'      => $org->currency,
+                'id' => $org->id,
+                'name' => $org->name,
+                'slug' => $org->slug,
+                'phone' => $org->phone,
+                'address' => $org->address,
+                'city' => $org->city,
+                'logo' => MediaService::toUrl($org->logo),
+                'timezone' => $org->timezone,
+                'currency' => $org->currency,
                 'opening_hours' => $org->opening_hours,
                 // Pajak & service charge — agar frontend bisa menampilkan rincian.
-                'tax_enabled'            => $org->tax_enabled,
-                'tax_rate'               => $org->tax_rate !== null ? (float) $org->tax_rate : null,
+                'tax_enabled' => $org->tax_enabled,
+                'tax_rate' => $org->tax_rate !== null ? (float) $org->tax_rate : null,
                 'service_charge_enabled' => $org->service_charge_enabled,
-                'service_charge_rate'    => $org->service_charge_rate !== null ? (float) $org->service_charge_rate : null,
+                'service_charge_rate' => $org->service_charge_rate !== null ? (float) $org->service_charge_rate : null,
             ],
         ]);
     }
@@ -79,14 +79,14 @@ class CustomerController extends Controller
         return response()->json([
             'data' => [
                 'organization' => [
-                    'id'   => $table->organization->id,
+                    'id' => $table->organization->id,
                     'name' => $table->organization->name,
                     'slug' => $table->organization->slug,
                 ],
                 'table' => [
-                    'id'       => $table->id,
-                    'name'     => $table->name,
-                    'code'     => $table->code,
+                    'id' => $table->id,
+                    'name' => $table->name,
+                    'code' => $table->code,
                     'location' => $table->location,
                 ],
             ],
@@ -149,33 +149,33 @@ class CustomerController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
-        $org             = Organization::findOrFail($table->organization_id);
-        $taxSnapshot     = $org->tax_enabled ? (float) $org->tax_rate : 0.0;
+        $org = Organization::findOrFail($table->organization_id);
+        $taxSnapshot = $org->tax_enabled ? (float) $org->tax_rate : 0.0;
         $serviceSnapshot = $org->service_charge_enabled ? (float) $org->service_charge_rate : 0.0;
 
         try {
             $result = DB::transaction(function () use ($table, $taxSnapshot, $serviceSnapshot, $request, $service, $qris) {
                 $order = Order::create([
-                    'order_number'                 => Order::generateOrderNumber($table->organization_id),
-                    'public_token'                 => Str::random(32),
-                    'organization_id'              => $table->organization_id,
-                    'dining_table_id'              => $table->id,
-                    'order_type'                   => OrderType::TableOrder,
-                    'bill_status'                  => BillStatus::None,
-                    'order_status'                 => OrderStatus::Pending,
-                    'payment_status'               => PaymentStatus::Pending,
-                    'payment_method'               => 'qris',
-                    'tax_rate_snapshot'            => $taxSnapshot,
+                    'order_number' => Order::generateOrderNumber($table->organization_id),
+                    'public_token' => Str::random(32),
+                    'organization_id' => $table->organization_id,
+                    'dining_table_id' => $table->id,
+                    'order_type' => OrderType::TableOrder,
+                    'bill_status' => BillStatus::None,
+                    'order_status' => OrderStatus::Pending,
+                    'payment_status' => PaymentStatus::Pending,
+                    'payment_method' => 'qris',
+                    'tax_rate_snapshot' => $taxSnapshot,
                     'service_charge_rate_snapshot' => $serviceSnapshot,
-                    'subtotal_amount'              => 0,
-                    'discount_amount'              => 0,
-                    'tax_amount'                   => 0,
-                    'service_charge_amount'        => 0,
-                    'total_amount'                 => 0,
-                    'payment_amount'               => 0,
-                    'change_amount'                => 0,
-                    'opened_at'                    => now(),
-                    'payment_expires_at'           => now()->addMinutes((int) config('santap.qris.expiry_minutes', 15)),
+                    'subtotal_amount' => 0,
+                    'discount_amount' => 0,
+                    'tax_amount' => 0,
+                    'service_charge_amount' => 0,
+                    'total_amount' => 0,
+                    'payment_amount' => 0,
+                    'change_amount' => 0,
+                    'opened_at' => now(),
+                    'payment_expires_at' => now()->addMinutes((int) config('santap.qris.expiry_minutes', 15)),
                 ]);
 
                 // Tambah item (juga menghitung ulang total).
@@ -189,9 +189,9 @@ class CustomerController extends Controller
                 $order->update(['payment_reference' => $reference]);
 
                 return [
-                    'order'      => $order,
+                    'order' => $order,
                     'qris_result' => $qrisResult,
-                    'reference'  => $reference,
+                    'reference' => $reference,
                 ];
             });
         } catch (ValidationException $e) {
@@ -200,8 +200,8 @@ class CustomerController extends Controller
         } catch (\Throwable $e) {
             Log::error('Customer createOrder gagal', [
                 'table_id' => $table->id,
-                'org_id'   => $table->organization_id,
-                'error'    => $e->getMessage(),
+                'org_id' => $table->organization_id,
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
@@ -210,26 +210,26 @@ class CustomerController extends Controller
         }
 
         /** @var Order $order */
-        $order      = $result['order'];
+        $order = $result['order'];
         $qrisResult = $result['qris_result'];
 
         return response()->json([
             'message' => 'Pesanan berhasil dibuat.',
-            'data'    => [
-                'order_id'           => $order->id,
-                'order_number'       => $order->order_number,
-                'public_token'       => $order->public_token,
-                'order_type'         => $order->order_type->value,
-                'bill_status'        => $order->bill_status->value,
-                'order_status'       => $order->order_status->value,
-                'payment_status'     => $order->payment_status->value,
-                'payment_method'     => $order->payment_method,
-                'payment_reference'  => $order->payment_reference,
+            'data' => [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'public_token' => $order->public_token,
+                'order_type' => $order->order_type->value,
+                'bill_status' => $order->bill_status->value,
+                'order_status' => $order->order_status->value,
+                'payment_status' => $order->payment_status->value,
+                'payment_method' => $order->payment_method,
+                'payment_reference' => $order->payment_reference,
                 'payment_expires_at' => $order->payment_expires_at?->toIso8601String(),
-                'server_time'        => now()->toIso8601String(),
-                'qris_data'          => [
-                    'qr_url'            => $qrisResult['data']['actions'][0]['url'] ?? $qrisResult['data']['qr_url'] ?? null,
-                    'qr_string'         => $qrisResult['data']['qr_string'] ?? null,
+                'server_time' => now()->toIso8601String(),
+                'qris_data' => [
+                    'qr_url' => $qrisResult['data']['actions'][0]['url'] ?? $qrisResult['data']['qr_url'] ?? null,
+                    'qr_string' => $qrisResult['data']['qr_string'] ?? null,
                     'payment_reference' => $result['reference'],
                 ],
             ],
@@ -300,7 +300,7 @@ class CustomerController extends Controller
         $model->refresh()->load(['items', 'diningTable.organization']);
 
         return response()->json([
-            'data'        => new OrderDetailResource($model),
+            'data' => new OrderDetailResource($model),
             'server_time' => now()->toIso8601String(),
         ]);
     }
@@ -339,17 +339,17 @@ class CustomerController extends Controller
         OrderItemService $service,
         OrderQrisPaymentService $payments,
         QrisService $qris,
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $order = $request->attributes->get('customer_order');
         $order = $payments->ensureItemsMutable($order, $qris);
 
-        $service->addItems($order, $request->validated()['items']);
+        $batch = $service->addItems($order, $request->validated()['items']);
 
         return response()->json([
-            'data'    => new OrderDetailResource(
+            'data' => new OrderDetailResource(
                 $order->fresh()->load('items', 'diningTable')
             ),
+            'batch' => $batch,
             'message' => 'Item berhasil ditambahkan.',
         ]);
     }
@@ -396,11 +396,11 @@ class CustomerController extends Controller
         $result = $sync['result'];
 
         Log::info('QRIS sync (open bill)', [
-            'order_no'              => $order->order_number,
-            'payment_reference'     => $order->payment_reference,
+            'order_no' => $order->order_number,
+            'payment_reference' => $order->payment_reference,
             'payment_status_before' => $before,
-            'provider_status'       => $result['status'],
-            'provider_tx_status'    => $result['transaction_status'],
+            'provider_status' => $result['status'],
+            'provider_tx_status' => $result['transaction_status'],
         ]);
 
         return response()->json([
@@ -457,7 +457,7 @@ class CustomerController extends Controller
         if (! $order->payment_reference) {
             if ($order->isPaymentExpired()) {
                 Log::info('QRIS sync (table order): expire tanpa payment_reference', [
-                    'order_no'              => $order->order_number,
+                    'order_no' => $order->order_number,
                     'payment_status_before' => $order->payment_status->value,
                 ]);
                 $order->markPaymentExpired('Payment Timeout');
@@ -471,11 +471,11 @@ class CustomerController extends Controller
         $result = $qris->check($order->payment_reference);
 
         Log::info('QRIS sync (table order)', [
-            'order_no'              => $order->order_number,
-            'payment_reference'     => $order->payment_reference,
+            'order_no' => $order->order_number,
+            'payment_reference' => $order->payment_reference,
             'payment_status_before' => $before,
-            'provider_status'       => $result['status'],
-            'provider_tx_status'    => $result['transaction_status'],
+            'provider_status' => $result['status'],
+            'provider_tx_status' => $result['transaction_status'],
         ]);
 
         if ($result['paid']) {
@@ -485,9 +485,9 @@ class CustomerController extends Controller
             Log::info($wasCancelled
                 ? 'QRIS sync (table order): order DIREKONSILIASI cancelled→PAID'
                 : 'QRIS sync (table order): order ditandai PAID', [
-                'order_no'             => $order->order_number,
-                'payment_status_after' => $order->payment_status->value,
-            ]);
+                    'order_no' => $order->order_number,
+                    'payment_status_after' => $order->payment_status->value,
+                ]);
 
             return;
         }
@@ -499,11 +499,11 @@ class CustomerController extends Controller
 
         // (3) Provider eksplisit menyatakan transaksi gagal.
         if (in_array($result['status'], ['expired', 'cancelled', 'denied'], true)) {
-            $order->markPaymentExpired('Payment ' . $result['status']);
+            $order->markPaymentExpired('Payment '.$result['status']);
 
             Log::info('QRIS sync (table order): order di-cancel oleh provider', [
                 'order_no' => $order->order_number,
-                'reason'   => $result['status'],
+                'reason' => $result['status'],
             ]);
 
             return;

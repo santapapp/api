@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Enums\BillStatus;
+use App\Enums\OrderType;
 use App\Models\Order;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -19,7 +22,7 @@ class OrderInfolist
             ->components([
                 // Banner Sesi Dibatalkan (untuk open_bill yang dibatalkan)
                 Section::make('⚠️ Sesi Open Bill Dibatalkan')
-                    ->visible(fn ($record): bool => $record !== null && $record->order_type === \App\Enums\OrderType::OpenBill && ($record->isCancelled() || $record->cancelled_at !== null))
+                    ->visible(fn ($record): bool => $record !== null && $record->order_type === OrderType::OpenBill && ($record->isCancelled() || $record->cancelled_at !== null))
                     ->schema([
                         TextEntry::make('cancelled_session_note')
                             ->label('')
@@ -38,7 +41,7 @@ class OrderInfolist
 
                 // Banner Sesi Ditutup (untuk open_bill yang sudah closed/paid)
                 Section::make('✅ Sesi Open Bill Sudah Ditutup')
-                    ->visible(fn ($record): bool => $record !== null && $record->order_type === \App\Enums\OrderType::OpenBill && ! ($record->isCancelled() || $record->cancelled_at !== null) && ($record->bill_status === \App\Enums\BillStatus::Closed || $record->closed_at !== null))
+                    ->visible(fn ($record): bool => $record !== null && $record->order_type === OrderType::OpenBill && ! ($record->isCancelled() || $record->cancelled_at !== null) && ($record->bill_status === BillStatus::Closed || $record->closed_at !== null))
                     ->schema([
                         TextEntry::make('closed_session_note')
                             ->label('')
@@ -49,7 +52,7 @@ class OrderInfolist
 
                 // Banner Sesi Aktif (untuk open_bill yang masih aktif)
                 Section::make('⚡ Sesi Open Bill Aktif')
-                    ->visible(fn ($record): bool => $record !== null && $record->order_type === \App\Enums\OrderType::OpenBill && ! ($record->isCancelled() || $record->cancelled_at !== null) && $record->bill_status === \App\Enums\BillStatus::Open && $record->closed_at === null)
+                    ->visible(fn ($record): bool => $record !== null && $record->order_type === OrderType::OpenBill && ! ($record->isCancelled() || $record->cancelled_at !== null) && $record->bill_status === BillStatus::Open && $record->closed_at === null)
                     ->schema([
                         TextEntry::make('active_session_note')
                             ->label('')
@@ -60,7 +63,7 @@ class OrderInfolist
 
                 // Banner Order Biasa Dibatalkan
                 Section::make('⚠️ Pesanan Dibatalkan')
-                    ->visible(fn ($record): bool => $record !== null && $record->order_type !== \App\Enums\OrderType::OpenBill && $record->isCancelled())
+                    ->visible(fn ($record): bool => $record !== null && $record->order_type !== OrderType::OpenBill && $record->isCancelled())
                     ->schema([
                         TextEntry::make('cancel_reason')
                             ->label('Pesanan ini telah dibatalkan karena:')
@@ -127,6 +130,18 @@ class OrderInfolist
                             ->placeholder('—'),
                     ]),
 
+                Section::make('Rincian Pesanan Open Bill')
+                    ->icon('heroicon-o-list-bullet')
+                    ->visible(fn ($record): bool => $record !== null && $record->order_type === OrderType::OpenBill)
+                    ->schema([
+                        ViewEntry::make('item_batches')
+                            ->label('')
+                            ->view('filament.orders.item-batches')
+                            ->viewData(fn (Order $record): array => [
+                                'record' => $record->loadMissing('items'),
+                            ]),
+                    ]),
+
                 Section::make('Pembayaran')
                     ->icon('heroicon-o-credit-card')
                     ->columns(3)
@@ -160,14 +175,13 @@ class OrderInfolist
                             ->label('Diskon')
                             ->money('IDR'),
                         TextEntry::make('tax_amount')
-                            ->label(fn ($record): string => 'Pajak (' . rtrim(rtrim((string) $record->tax_rate_snapshot, '0'), '.') . '%)')
+                            ->label(fn ($record): string => 'Pajak ('.rtrim(rtrim((string) $record->tax_rate_snapshot, '0'), '.').'%)')
                             ->money('IDR'),
                         TextEntry::make('service_charge_amount')
-                            ->label(fn ($record): string => 'Service (' . rtrim(rtrim((string) $record->service_charge_rate_snapshot, '0'), '.') . '%)')
+                            ->label(fn ($record): string => 'Service ('.rtrim(rtrim((string) $record->service_charge_rate_snapshot, '0'), '.').'%)')
                             ->money('IDR'),
                         TextEntry::make('total_amount')
-                            ->label(fn (Order $record): string => 
-                                $record->order_type === \App\Enums\OrderType::OpenBill && $record->isOpen() && ! $record->isCancelled()
+                            ->label(fn (Order $record): string => $record->order_type === OrderType::OpenBill && $record->isOpen() && ! $record->isCancelled()
                                     ? 'Total Sementara'
                                     : 'Total'
                             )

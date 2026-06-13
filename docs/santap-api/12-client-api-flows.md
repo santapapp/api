@@ -290,6 +290,8 @@ Kasir mengelola tagihan meja (bill), memproses pembayaran dari pelanggan (baik t
 
 > Catatan implementasi saat ini: API staff aktif memakai prefix `/v1/cashier/orders`.
 > Open bill direpresentasikan sebagai `orders.order_type = open_bill` dan `bill_status = open`.
+> Repeat order Open Bill tidak membuat row `orders` baru. Setiap submit menambah item ke order yang sama dan membuat batch baru di `order_items` dengan `batch_uuid`, `batch_number`, dan `submitted_at`.
+> Detail/list order menyertakan `batch_count`, `latest_batch`, dan `item_batches` agar mobile cashier/kitchen dapat menyorot repeat order terbaru.
 > Guard duplicate QRIS selalu scoped ke `orders.id` yang sedang diproses: satu order tidak boleh membuat QRIS baru saat attempt QRIS order itu masih pending, tetapi order lain tetap boleh membuat QRIS sendiri.
 > Saat QRIS dibatalkan, expired, atau failed, attempt lama disimpan di `orders.metadata.qris_attempts[]`; attempt aktif tersimpan ringkas di `orders.metadata.qris_active` tanpa raw response penuh dari provider.
 > Item tidak boleh ditambah, diubah, atau dihapus ketika QRIS order tersebut masih pending. Kasir harus cancel QRIS dulu, atau tunggu expired lalu regenerate.

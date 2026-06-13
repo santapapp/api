@@ -58,7 +58,8 @@ class AppServiceProvider extends ServiceProvider
                     - Open Bill adalah sesi order meja yang diinisiasi oleh staff/kasir dari mobile app (bukan dibuat langsung oleh pelanggan di customer web).
                     - Begitu Open Bill dibuat, API menghasilkan data order dengan `order_type = open_bill`, status sesi awal `bill_status = open`, status order `order_status = pending`, status pembayaran `payment_status = unpaid`, dan `public_token` unik untuk QR session.
                     - QR session ini bisa discan pelanggan untuk masuk ke sesi open bill aktif (`EnsureCustomerToken` middleware memverifikasi status `bill_status = open` dan order tidak dibatalkan).
-                    - Selama sesi aktif (`bill_status = open`), pelanggan diperbolehkan menambah item. Item yang ditambahkan otomatis memajukan status order menjadi `confirmed` dan langsung masuk antrian dapur (`v1/kitchen/orders`) untuk dimasak tanpa harus bayar dulu.
+                    - Selama sesi aktif (`bill_status = open`), pelanggan diperbolehkan menambah item. Setiap submit repeat order membuat batch item baru di `order_items` (`batch_uuid`, `batch_number`, `submitted_at`) tanpa membuat row baru di `orders`.
+                    - Item yang ditambahkan otomatis memajukan status order menjadi `confirmed` dan langsung masuk antrian dapur (`v1/kitchen/orders`) untuk dimasak tanpa harus bayar dulu. Response detail menyertakan `item_batches` untuk tampilan "Pesanan #1", "Pesanan #2", dan seterusnya.
                     - Pembayaran diselesaikan di akhir. Setelah lunas (tunai/QRIS) atau ditutup secara manual oleh kasir, status bill menjadi `bill_status = closed` dan sesi berakhir. Jika open bill dibatalkan, status order & payment diset `cancelled`, status bill diset `closed`, dan sesi customer otomatis tidak aktif/valid lagi.
 
                     **Siklus Hidup Status Open Bill:**
@@ -565,7 +566,7 @@ class AppServiceProvider extends ServiceProvider
             // ── Cashier ───────────────────────────────────────────────────────
             $uri === 'v1/cashier/orders' && $method === 'get' => [
                 'List cashier/open bill orders',
-                'Mengambil order hari ini dalam organisasi aktif. Filter `order_type=open_bill&bill_status=open` untuk daftar open bill aktif.',
+                'Mengambil order hari ini dalam organisasi aktif. Filter `order_type=open_bill&bill_status=open` untuk daftar open bill aktif. Response list menyertakan `batch_count` dan `latest_batch` agar mobile cashier/kitchen dapat menandai repeat order terbaru.',
                 null,
             ],
             $uri === 'v1/cashier/orders' && $method === 'post' => [
@@ -585,12 +586,12 @@ class AppServiceProvider extends ServiceProvider
             ],
             $uri === 'v1/cashier/orders/{id}' && $method === 'get' => [
                 'Show cashier/open bill order',
-                'Mengambil detail order beserta item dan metadata QRIS ringkas (`qris.active`, `qris.attempts_count`, `qris.is_expired`).',
+                'Mengambil detail order beserta item, grouping `item_batches`, summary batch, dan metadata QRIS ringkas (`qris.active`, `qris.attempts_count`, `qris.is_expired`). Open Bill tetap satu order; repeat order hanya menambah batch item.',
                 null,
             ],
             $uri === 'v1/cashier/orders/{id}/items' && $method === 'post' => [
                 'Add items to open bill',
-                'Menambah item ke order. Gunakan `selected_options[{group_id, option_id}]` untuk variant/addon; `selected_variants` masih diterima sebagai legacy payload. Menu, group, option, dan meja harus berada dalam organisasi yang sama.',
+                'Menambah item ke order. Untuk Open Bill, setiap submit membuat batch baru di `order_items` dengan `batch_uuid`, `batch_number`, dan `submitted_at`; tidak membuat order/child order baru. Gunakan `selected_options[{group_id, option_id}]` untuk variant/addon; `selected_variants` masih diterima sebagai legacy payload. Menu, group, option, dan meja harus berada dalam organisasi yang sama.',
                 'Item tidak bisa dimutasi saat QRIS pending aktif, payment paid, bill closed/cancelled, atau menu/options bukan milik organisasi/order yang sama.',
             ],
             $uri === 'v1/cashier/orders/{id}/items/{itemId}' && $method === 'patch' => [
@@ -741,12 +742,12 @@ class AppServiceProvider extends ServiceProvider
             ],
             $hasCustomerToken && $uri === 'v1/customer/order' && $method === 'get' => [
                 'Show active open bill',
-                'Mengambil open bill aktif berdasarkan header `X-Public-Token: {public_token}` yang dikirim customer. Menyertakan detail item dan status.',
+                'Mengambil open bill aktif berdasarkan header `X-Public-Token: {public_token}` yang dikirim customer. Menyertakan detail item, `summary`, dan `item_batches` untuk grouping "Pesanan #1", "Pesanan #2", dan seterusnya.',
                 null,
             ],
             $uri === 'v1/customer/order/items' && $method === 'post' => [
                 'Add items to active open bill',
-                'Menambah item ke open bill aktif menggunakan header `X-Public-Token: {public_token}`. Pending/paid QRIS memblokir tambah item.',
+                'Menambah item ke open bill aktif menggunakan header `X-Public-Token: {public_token}`. Endpoint ini dipakai untuk repeat order: Open Bill tetap satu row `orders`, sedangkan setiap submit membuat batch item baru di `order_items` (`batch_uuid`, `batch_number`, `submitted_at`). Pending/paid QRIS memblokir tambah item.',
                 'Item tidak bisa ditambahkan saat QRIS pending aktif, payment paid, bill closed/cancelled, atau menu/options tidak sesuai.',
             ],
             $uri === 'v1/customer/order/pay-qris' && $method === 'post' => [

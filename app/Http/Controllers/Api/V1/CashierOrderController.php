@@ -20,10 +20,10 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Organization;
 use App\Services\OrderItemService;
+use App\Services\OrderLifecycleService;
 use App\Services\OrderQrisPaymentService;
 use App\Services\OrganizationContext;
 use App\Services\QrisService;
-use App\Services\OrderLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -50,7 +50,7 @@ class CashierOrderController extends Controller
                 $query->where('order_type', '!=', OrderType::TableOrder)
                     ->orWhere('payment_status', '!=', PaymentStatus::Pending);
             })
-            ->with(['diningTable', 'createdBy'])
+            ->with(['items', 'diningTable', 'createdBy'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -149,10 +149,11 @@ class CashierOrderController extends Controller
         $order = Order::where('organization_id', $orgId)->findOrFail($id);
         $order = $payments->ensureItemsMutable($order, $qris);
 
-        $items->addItems($order, $request->validated('items'));
+        $batch = $items->addItems($order, $request->validated('items'));
 
         return response()->json([
             'data' => new OrderDetailResource($order->fresh()->load('items', 'diningTable', 'createdBy')),
+            'batch' => $batch,
             'message' => 'Item berhasil ditambahkan.',
         ]);
     }

@@ -16,6 +16,7 @@ OrderAccepted
 OrderStatusUpdated
 OrderItemStatusUpdated
 OpenBillCreated
+OpenBillRepeatOrderCreated
 OpenBillClosed
 PaymentCreated
 PaymentPaid
@@ -49,6 +50,8 @@ Customer membuat order
 → kitchen screen update realtime
 → cashier screen update realtime
 ```
+
+Untuk Open Bill, repeat order tetap berada pada satu row `orders`. Event realtime yang disiapkan adalah `OpenBillRepeatOrderCreated`, dengan payload batch seperti `batch_uuid`, `batch_number`, `items_count`, `batch_total`, `order_total`, `bill_status`, dan informasi meja ringkas.
 
 ---
 

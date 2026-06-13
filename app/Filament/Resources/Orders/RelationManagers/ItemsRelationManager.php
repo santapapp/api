@@ -43,8 +43,23 @@ class ItemsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('menu')->orderBy('parent_item_id'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query
+                ->with('menu')
+                ->orderByDesc('batch_number')
+                ->orderByDesc('submitted_at')
+                ->orderBy('parent_item_id'))
             ->columns([
+                TextColumn::make('batch_number')
+                    ->label('Pesanan')
+                    ->formatStateUsing(fn (?int $state): string => $state ? 'Pesanan #'.$state : '-')
+                    ->badge()
+                    ->color('primary')
+                    ->sortable(),
+                TextColumn::make('submitted_at')
+                    ->label('Masuk')
+                    ->dateTime('d M Y H:i')
+                    ->placeholder('-')
+                    ->sortable(),
                 ImageColumn::make('menu.image')
                     ->label('')
                     ->disk('public')
@@ -86,6 +101,7 @@ class ItemsRelationManager extends RelationManager
             ->emptyStateDescription(function (): string {
                 /** @var Order $order */
                 $order = $this->getOwnerRecord();
+
                 return $order->isCancelled() || $order->cancelled_at !== null
                     ? 'Tidak ada item pada sesi yang dibatalkan ini.'
                     : 'Customer atau kasir belum menambahkan item ke sesi ini.';
@@ -298,7 +314,7 @@ class ItemsRelationManager extends RelationManager
         }
 
         return collect($options)
-            ->map(fn (array $option): string => ($option['group_name'] ?? 'Option') . ': ' . ($option['option_name'] ?? '-'))
+            ->map(fn (array $option): string => ($option['group_name'] ?? 'Option').': '.($option['option_name'] ?? '-'))
             ->join(', ');
     }
 }

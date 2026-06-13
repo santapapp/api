@@ -13,15 +13,20 @@ use App\Models\Menu;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrderItemService
 {
     /**
-     * @param array<int, array<string, mixed>> $items
+     * @param  array<int, array<string, mixed>>  $items
      */
-    public function addItems(Order $order, array $items): void
+    public function addItems(Order $order, array $items): ?array
     {
+        if ($order->order_type === OrderType::OpenBill) {
+            return $this->addOpenBillBatchItems($order, $items);
+        }
+
         DB::transaction(function () use ($order, $items): void {
             foreach ($items as $index => $itemData) {
                 $this->processItem($order, $itemData, $index);
@@ -29,6 +34,46 @@ class OrderItemService
 
             $order->recalculate();
             $this->syncOpenBillKitchenStatus($order);
+        });
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array{batch_uuid: string, batch_number: int, submitted_at: string, items_count: int, batch_total: float}
+     */
+    public function addOpenBillBatchItems(Order $order, array $items): array
+    {
+        return DB::transaction(function () use ($order, $items): array {
+            $lockedOrder = Order::query()
+                ->whereKey($order->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $batchNumber = ((int) $lockedOrder->items()->max('batch_number')) + 1;
+            $submittedAt = now();
+            $batch = [
+                'batch_uuid' => (string) Str::uuid(),
+                'batch_number' => $batchNumber,
+                'submitted_at' => $submittedAt,
+            ];
+            $createdItems = collect();
+
+            foreach ($items as $index => $itemData) {
+                $createdItems->push($this->processItem($lockedOrder, $itemData, $index, $batch));
+            }
+
+            $lockedOrder->recalculate();
+            $this->syncOpenBillKitchenStatus($lockedOrder);
+
+            return [
+                'batch_uuid' => $batch['batch_uuid'],
+                'batch_number' => $batchNumber,
+                'submitted_at' => $submittedAt->toIso8601String(),
+                'items_count' => $createdItems->count(),
+                'batch_total' => round($createdItems->sum(fn (OrderItem $item): float => (float) $item->subtotal), 2),
+            ];
         });
     }
 
@@ -82,9 +127,9 @@ class OrderItemService
     }
 
     /**
-     * @param array<string, mixed> $itemData
+     * @param  array<string, mixed>  $itemData
      */
-    private function processItem(Order $order, array $itemData, int $index): void
+    private function processItem(Order $order, array $itemData, int $index, ?array $batch = null): OrderItem
     {
         $product = Menu::with([
             'children' => function ($query): void {
@@ -215,7 +260,7 @@ class OrderItemService
             ];
         }
 
-        OrderItem::create([
+        return OrderItem::create([
             'order_id' => $order->id,
             'menu_id' => $product->id,
             'item_type' => ItemType::Product->value,
@@ -228,11 +273,14 @@ class OrderItemService
             'subtotal' => $subtotal,
             'note' => $note,
             'metadata' => empty($selectedOptions) ? null : ['selected_options' => $selectedOptions],
+            'batch_uuid' => $batch['batch_uuid'] ?? null,
+            'batch_number' => $batch['batch_number'] ?? null,
+            'submitted_at' => $batch['submitted_at'] ?? null,
         ]);
     }
 
     /**
-     * @param array<string, mixed> $itemData
+     * @param  array<string, mixed>  $itemData
      * @return array<int, array{group_id: mixed, option_id: mixed}>
      */
     private function normalizeSelectedOptions(array $itemData): array

@@ -30,20 +30,25 @@ class OrderItem extends Model
         'item_status',
         'note',
         'metadata',
+        'batch_uuid',
+        'batch_number',
+        'submitted_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'item_type'    => ItemType::class,
-            'item_status'  => ItemStatus::class,
-            'base_price'   => 'decimal:2',
-            'variant_total'=> 'decimal:2',
-            'unit_price'   => 'decimal:2',
-            'price'        => 'decimal:2',
-            'subtotal'     => 'decimal:2',
-            'quantity'     => 'integer',
-            'metadata'     => 'array',
+            'item_type' => ItemType::class,
+            'item_status' => ItemStatus::class,
+            'base_price' => 'decimal:2',
+            'variant_total' => 'decimal:2',
+            'unit_price' => 'decimal:2',
+            'price' => 'decimal:2',
+            'subtotal' => 'decimal:2',
+            'quantity' => 'integer',
+            'metadata' => 'array',
+            'batch_number' => 'integer',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -81,8 +86,8 @@ class OrderItem extends Model
 
         $this->update([
             'unit_price' => $unitPrice,
-            'price'      => $unitPrice, // sync legacy field
-            'subtotal'   => round($unitPrice * $this->quantity, 2),
+            'price' => $unitPrice, // sync legacy field
+            'subtotal' => round($unitPrice * $this->quantity, 2),
         ]);
     }
 }

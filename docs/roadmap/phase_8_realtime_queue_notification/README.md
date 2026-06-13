@@ -24,6 +24,7 @@ Menghubungkan workflow transaksi dengan update realtime, background jobs, dan no
   - `OrderStatusUpdated`
   - `OrderItemStatusUpdated`
   - `OpenBillCreated`
+  - `OpenBillRepeatOrderCreated`
   - `OpenBillClosed`
   - `PaymentCreated`
   - `PaymentPaid`
@@ -65,6 +66,7 @@ Menghubungkan workflow transaksi dengan update realtime, background jobs, dan no
 
 - Kitchen menerima order baru realtime.
 - Cashier menerima order/payment/bill update realtime.
+- Cashier/kitchen menerima notifikasi repeat order Open Bill per batch item terbaru.
 - Customer menerima update status order atau bill closed.
 - Job invitation, QR generation, receipt, dan expiry berjalan di queue.
 - Horizon bisa memonitor queue.
