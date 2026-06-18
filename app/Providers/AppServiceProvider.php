@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Services\OrganizationContext;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -19,6 +20,7 @@ use Dedoc\Scramble\Support\RouteInfo;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +36,20 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Auth::viaRequest('customer-token', function (Request $request) {
+            $token = $request->header('X-Public-Token');
+            if (! $token) {
+                return null;
+            }
+
+            $user = new User([
+                'name' => 'Customer',
+            ]);
+            $user->exists = false;
+
+            return $user;
+        });
+
         Gate::define('viewApiDocs', function ($user = null) {
             return (bool) config('app.scramble_docs_enabled', false);
         });
@@ -72,6 +88,12 @@ class AppServiceProvider extends ServiceProvider
                     **QRIS & Mutasi Item:**
                     - `POST /v1/cashier/orders/{id}/pay-qris` mengunci order terkait saja. Jika order yang sama masih punya QRIS pending aktif, API mengembalikan QRIS existing.
                     - QRIS hanya bisa dibuat saat total > 0. Selama QRIS pending, penambahan/perubahan item diblokir.
+
+                    **Notifikasi Real-Time (Event Broadcasting):**
+                    - Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
+                    - **Channel:** Private channel `open-bill.{billId}`.
+                    - **Event:** `repeat-order-created` (class `App\Events\OpenBillRepeatOrderCreated`).
+                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `sanctum` dengan menyertakan header `Authorization: Bearer <token_staff>`.
                     MD,
                 'version' => '1.0.0',
             ],
@@ -178,6 +200,12 @@ class AppServiceProvider extends ServiceProvider
                     - **Kunci Pembayaran (QRIS):** Saat melakukan checkout/payment QRIS (`POST /v1/customer/order/pay-qris`), status pembayaran menjadi `pending` dan item dikunci (tidak bisa ditambah/diubah/dihapus) untuk mencegah ketidaksesuaian nominal.
                     - **Cancel QRIS Attempt vs Cancel Open Bill:** Jika pelanggan membatalkan QRIS attempt (`DELETE /v1/customer/order/qris-cancel`), status pembayaran diset `cancelled` tapi sesi open bill tetap `open` dan `order_status` **TIDAK** dibatalkan (customer bisa memesan lagi atau generate QRIS baru).
                     - **Pelunasan:** Setelah QRIS sukses terbayar (settlement), status pembayaran otomatis disinkronkan, status pembayaran menjadi `paid`, status bill menjadi `closed`, dan sesi berakhir.
+
+                    **Notifikasi Real-Time (Event Broadcasting):**
+                    - Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
+                    - **Channel:** Private channel `open-bill.{billId}`.
+                    - **Event:** `repeat-order-created` (class `App\Events\OpenBillRepeatOrderCreated`).
+                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `customer-token` dengan menyertakan header `X-Public-Token`.
                     MD,
                 'version' => '1.0.0',
             ],

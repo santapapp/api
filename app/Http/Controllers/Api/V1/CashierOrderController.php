@@ -8,6 +8,7 @@ use App\Enums\BillStatus;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
+use App\Events\OpenBillRepeatOrderCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\AddItemsRequest;
 use App\Http\Requests\Order\CancelOrderRequest;
@@ -150,9 +151,14 @@ class CashierOrderController extends Controller
         $order = $payments->ensureItemsMutable($order, $qris);
 
         $batch = $items->addItems($order, $request->validated('items'));
+        $freshOrder = $order->fresh()->load('items', 'diningTable', 'organization', 'createdBy');
+
+        if ($batch !== null) {
+            event(OpenBillRepeatOrderCreated::fromOrder($freshOrder, $batch));
+        }
 
         return response()->json([
-            'data' => new OrderDetailResource($order->fresh()->load('items', 'diningTable', 'createdBy')),
+            'data' => new OrderDetailResource($freshOrder),
             'batch' => $batch,
             'message' => 'Item berhasil ditambahkan.',
         ]);

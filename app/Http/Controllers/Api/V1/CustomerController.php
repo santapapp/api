@@ -8,6 +8,7 @@ use App\Enums\BillStatus;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
+use App\Events\OpenBillRepeatOrderCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\AddItemsRequest;
 use App\Http\Requests\Customer\CreateOrderRequest;
@@ -344,11 +345,11 @@ class CustomerController extends Controller
         $order = $payments->ensureItemsMutable($order, $qris);
 
         $batch = $service->addItems($order, $request->validated()['items']);
+        $freshOrder = $order->fresh()->load('items', 'diningTable', 'organization');
+        event(OpenBillRepeatOrderCreated::fromOrder($freshOrder, $batch));
 
         return response()->json([
-            'data' => new OrderDetailResource(
-                $order->fresh()->load('items', 'diningTable')
-            ),
+            'data' => new OrderDetailResource($freshOrder),
             'batch' => $batch,
             'message' => 'Item berhasil ditambahkan.',
         ]);
