@@ -91,9 +91,11 @@ class AppServiceProvider extends ServiceProvider
 
                     **Notifikasi Real-Time (Event Broadcasting):**
                     - Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
-                    - **Channel:** Private channel `open-bill.{billId}`.
+                    - **Channel:**
+                      * Pelanggan (Web): Private channel `open-bill.{billId}` (hanya untuk meja terkait).
+                      * Staff/Kasir (Mobile/Flutter): Private channel `organization.{orgId}` (untuk memantau repeat order dari semua meja sekaligus).
                     - **Event:** `repeat-order-created` (class `App\Events\OpenBillRepeatOrderCreated`).
-                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `sanctum` dengan menyertakan header `Authorization: Bearer <token_staff>`.
+                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `sanctum` (dengan header `Authorization: Bearer <token_staff>`) atau guard `customer-token` (dengan header `X-Public-Token`).
                     MD,
                 'version' => '1.0.0',
             ],
