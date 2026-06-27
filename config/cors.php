@@ -18,10 +18,15 @@ return [
     /*
     | Paths yang di-cover CORS.
     | Route API menggunakan prefix /v1/* (bukan /api/*), jadi keduanya dicantumkan.
+    | 'broadcasting/auth' wajib di-cover: customer web (origin santap.app) meng-authorize
+    | private channel open-bill.{billId} lewat endpoint ini secara cross-origin
+    | (mengirim header X-Public-Token). Tanpa ini, preflight gagal dan notifikasi
+    | real-time (OpenBillRepeatOrderCreated) tidak pernah sampai ke browser.
     */
     'paths' => [
         'v1/*',
         'api/*',
+        'broadcasting/auth',
         'sanctum/csrf-cookie',
     ],
 

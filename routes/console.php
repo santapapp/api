@@ -8,3 +8,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 \Illuminate\Support\Facades\Schedule::command('orders:expire-pending')->everyMinute();
+\Illuminate\Support\Facades\Schedule::command('orders:close-expired-open-bills')->hourly();
