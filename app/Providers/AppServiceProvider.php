@@ -90,12 +90,35 @@ class AppServiceProvider extends ServiceProvider
                     - QRIS hanya bisa dibuat saat total > 0. Selama QRIS pending, penambahan/perubahan item diblokir.
 
                     **Notifikasi Real-Time (Event Broadcasting):**
-                    - Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
-                    - **Channel:**
-                      * Pelanggan (Web): Private channel `open-bill.{billId}` (hanya untuk meja terkait).
-                      * Staff/Kasir (Mobile/Flutter): Private channel `organization.{orgId}` (untuk memantau repeat order dari semua meja sekaligus).
-                    - **Event:** `repeat-order-created` (class `App\Events\OpenBillRepeatOrderCreated`).
-                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `sanctum` (dengan header `Authorization: Bearer <token_staff>`) atau guard `customer-token` (dengan header `X-Public-Token`).
+                    Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
+
+                    ---
+
+                    ### 📡 Real-Time WebSockets: Staff Channel
+                    
+                    Gunakan panduan berikut untuk menghubungkan WebSocket client di aplikasi staff (Flutter/Mobile POS) guna memantau pesanan masuk secara real-time.
+
+                    #### **Detail Channel**
+                    * **Tujuan**: Memantau repeat order dan pesanan baru dari semua meja dalam organisasi secara real-time.
+                    * **Nama Channel**: `private-organization.{orgId}` (Ganti `{orgId}` dengan ID organisasi aktif).
+                    * **Event**: `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`).
+                    * **Metode Autentikasi**: Otentikasi menggunakan token Bearer staff di header `Authorization: Bearer <staff_token>` dan header `X-Org-ID: <org_id>`. Sistem memverifikasi apakah staff memiliki role aktif di organisasi tersebut.
+
+                    #### **Cara Kerja di Aplikasi Staff**
+                    
+                    1. **Konfigurasikan WebSocket client** untuk mengirimkan token Bearer saat melakukan otentikasi ke `/broadcasting/auth`:
+                       ```text
+                       Authorization: Bearer <token_staff>
+                       X-Org-ID: <org_id>
+                       ```
+                    
+                    2. **Lakukan subscribe ke:**
+                       ```javascript
+                       Echo.private('organization.' + orgId)
+                           .listen('.repeat-order-created', (e) => {
+                               console.log('Pesanan baru masuk:', e);
+                           });
+                       ```
                     MD,
                 'version' => '1.0.0',
             ],
@@ -204,10 +227,34 @@ class AppServiceProvider extends ServiceProvider
                     - **Pelunasan:** Setelah QRIS sukses terbayar (settlement), status pembayaran otomatis disinkronkan, status pembayaran menjadi `paid`, status bill menjadi `closed`, dan sesi berakhir.
 
                     **Notifikasi Real-Time (Event Broadcasting):**
-                    - Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
-                    - **Channel:** Private channel `open-bill.{billId}`.
-                    - **Event:** `repeat-order-created` (class `App\Events\OpenBillRepeatOrderCreated`).
-                    - **Autentikasi Channel:** Endpoint `/broadcasting/auth` menggunakan guard `customer-token` dengan menyertakan header `X-Public-Token`.
+                    Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
+
+                    ---
+
+                    ### 📡 Real-Time WebSockets: Open Bill Channel
+                    
+                    Gunakan panduan berikut untuk menghubungkan WebSocket client di aplikasi pelanggan guna mendengarkan pembaruan pesanan secara real-time.
+
+                    #### **Detail Channel**
+                    * **Tujuan**: Mendengarkan update status open bill atau pesanan berulang miliknya sendiri di meja makan.
+                    * **Nama Channel**: `private-open-bill.{billId}` (Ganti `{billId}` dengan ID Order open bill aktif).
+                    * **Event**: `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`).
+                    * **Metode Autentikasi**: Otentikasi otomatis menggunakan header `X-Public-Token` yang berisi token publik unik sesi meja tersebut. Sistem memverifikasi token ini terhadap database untuk memastikan pelanggan hanya bisa mendengarkan data mejanya sendiri tanpa perlu login.
+
+                    #### **Cara Kerja di Aplikasi Pelanggan**
+                    
+                    1. **Konfigurasikan WebSocket client** (Laravel Echo / Pusher) untuk mengirimkan header berikut saat melakukan otentikasi ke `/broadcasting/auth`:
+                       ```javascript
+                       X-Public-Token: <token_publik_sesi_meja>
+                       ```
+                    
+                    2. **Lakukan subscribe ke:**
+                       ```javascript
+                       Echo.private('open-bill.' + billId)
+                           .listen('.repeat-order-created', (e) => {
+                               console.log('Update pesanan meja:', e);
+                           });
+                       ```
                     MD,
                 'version' => '1.0.0',
             ],
@@ -282,6 +329,24 @@ class AppServiceProvider extends ServiceProvider
                     - Halaman admin memantau riwayat sesi open bill aktif (`bill_status = open` dan `order_status != cancelled`).
                     - Ketika open bill dibatalkan (baik via API cashier maupun aksi di Filament backoffice), status order dan payment diset `cancelled`, status bill ditutup (`bill_status = closed`), dan sesi customer diblokir secara real-time.
                     - Detail siklus hidup status, alur QRIS, dan payload item sama dengan dokumentasi pada group Mobile dan Web Customer.
+
+                    ---
+
+                    ### 📡 Real-Time WebSockets: Channels Summary
+                    
+                    Sistem menggunakan Laravel Reverb untuk notifikasi real-time tanpa delay.
+
+                    #### **1. Customer Open Bill Channel**
+                    * **Tujuan**: Mendengarkan update status open bill atau pesanan berulang miliknya sendiri di meja makan.
+                    * **Nama Channel**: `private-open-bill.{billId}`
+                    * **Event**: `repeat-order-created`
+                    * **Autentikasi**: Otentikasi otomatis menggunakan header `X-Public-Token` yang berisi token publik unik sesi meja tersebut ke `/broadcasting/auth`.
+
+                    #### **2. Staff Organization Channel**
+                    * **Tujuan**: Memantau repeat order dan pesanan baru dari semua meja dalam organisasi.
+                    * **Nama Channel**: `private-organization.{orgId}`
+                    * **Event**: `repeat-order-created`
+                    * **Autentikasi**: Otentikasi menggunakan token Bearer staff di header `Authorization: Bearer <staff_token>` dan header `X-Org-ID: <org_id>` ke `/broadcasting/auth`.
                     MD,
                 'version' => '1.0.0',
             ],
