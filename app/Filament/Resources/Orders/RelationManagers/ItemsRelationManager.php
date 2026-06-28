@@ -231,6 +231,9 @@ class ItemsRelationManager extends RelationManager
                         $record->update(['item_status' => $data['item_status']]);
                         $record->order->syncStatusFromItems();
 
+                        // Dispatch broadcast event for item status updates
+                        event(\App\Events\OrderItemStatusUpdated::fromItem($record->fresh()));
+
                         Notification::make()
                             ->title('Status item diperbarui')
                             ->success()

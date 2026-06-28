@@ -67,6 +67,9 @@ class KitchenOrderController extends Controller
         // Rollup: turunkan order_status dari agregat item.
         $item->order->syncStatusFromItems();
 
+        // Dispatch broadcast event for item status updates
+        event(\App\Events\OrderItemStatusUpdated::fromItem($item->fresh()));
+
         return response()->json([
             'data'    => $item->fresh(),
             'message' => 'Status item diupdate.',
