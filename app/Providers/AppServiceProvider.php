@@ -99,9 +99,13 @@ class AppServiceProvider extends ServiceProvider
                     Gunakan panduan berikut untuk menghubungkan WebSocket client di aplikasi staff (Flutter/Mobile POS) guna memantau pesanan masuk secara real-time.
 
                     #### **Detail Channel**
-                    * **Tujuan**: Memantau repeat order dan pesanan baru dari semua meja dalam organisasi secara real-time.
+                    * **Tujuan**: Memantau pesanan baru, repeat order, pembaruan item dapur, dan pelunasan transaksi dari semua meja dalam organisasi secara real-time.
                     * **Nama Channel**: `private-organization.{orgId}` (Ganti `{orgId}` dengan ID organisasi aktif).
-                    * **Event**: `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`).
+                    * **Daftar Event & Kegunaan**:
+                      1. `order-placed` (Class event: `App\Events\OrderPlaced`) — Notifikasi saat ada pesanan baru masuk dari meja (Table Order).
+                      2. `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`) — Notifikasi saat pelanggan menambahkan menu baru ke sesi Open Bill aktif.
+                      3. `item-status-updated` (Class event: `App\Events\OrderItemStatusUpdated`) — Notifikasi saat dapur memperbarui status menu (Dimasak, Siap, Tersaji).
+                      4. `order-paid` (Class event: `App\Events\OrderPaid`) — Notifikasi saat pesanan meja berhasil dibayar lunas.
                     * **Metode Autentikasi**: Otentikasi menggunakan token Bearer staff di header `Authorization: Bearer <staff_token>` dan header `X-Org-ID: <org_id>`. Sistem memverifikasi apakah staff memiliki role aktif di organisasi tersebut.
 
                     #### **Cara Kerja di Aplikasi Staff**
@@ -114,10 +118,27 @@ class AppServiceProvider extends ServiceProvider
                     
                     2. **Lakukan subscribe ke:**
                        ```javascript
-                       Echo.private('organization.' + orgId)
-                           .listen('.repeat-order-created', (e) => {
-                               console.log('Pesanan baru masuk:', e);
-                           });
+                       const channel = Echo.private('organization.' + orgId);
+
+                       // Listen pesanan baru dari meja
+                       channel.listen('.order-placed', (e) => {
+                           console.log('Pesanan meja baru masuk:', e);
+                       });
+
+                       // Listen tambahan menu ke open bill aktif
+                       channel.listen('.repeat-order-created', (e) => {
+                           console.log('Tambahan menu masuk:', e);
+                       });
+
+                       // Listen update status menu dapur
+                       channel.listen('.item-status-updated', (e) => {
+                           console.log('Status item dapur berubah:', e);
+                       });
+
+                       // Listen pelunasan pembayaran
+                       channel.listen('.order-paid', (e) => {
+                           console.log('Pesanan telah dibayar lunas:', e);
+                       });
                        ```
                     MD,
                 'version' => '1.0.0',
@@ -231,14 +252,17 @@ class AppServiceProvider extends ServiceProvider
 
                     ---
 
-                    ### 📡 Real-Time WebSockets: Open Bill Channel
+                    ### 📡 Real-Time WebSockets: Open Bill & Customer Channel
                     
                     Gunakan panduan berikut untuk menghubungkan WebSocket client di aplikasi pelanggan guna mendengarkan pembaruan pesanan secara real-time.
 
                     #### **Detail Channel**
-                    * **Tujuan**: Mendengarkan update status open bill atau pesanan berulang miliknya sendiri di meja makan.
+                    * **Tujuan**: Mendengarkan update status open bill, pesanan berulang, update status masak, atau pelunasan miliknya sendiri di meja makan.
                     * **Nama Channel**: `private-open-bill.{billId}` (Ganti `{billId}` dengan ID Order open bill aktif).
-                    * **Event**: `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`).
+                    * **Daftar Event & Kegunaan**:
+                      1. `repeat-order-created` (Class event: `App\Events\OpenBillRepeatOrderCreated`) — Untuk memperbarui data tagihan dan badge jumlah item di layar pelanggan.
+                      2. `item-status-updated` (Class event: `App\Events\OrderItemStatusUpdated`) — Untuk memberi notifikasi toast/audio saat dapur menyelesaikan masakan.
+                      3. `order-paid` (Class event: `App\Events\OrderPaid`) — Untuk mengalihkan layar pelanggan ke halaman tanda terima/receipt ketika pesanan lunas.
                     * **Metode Autentikasi**: Otentikasi otomatis menggunakan header `X-Public-Token` yang berisi token publik unik sesi meja tersebut. Sistem memverifikasi token ini terhadap database untuk memastikan pelanggan hanya bisa mendengarkan data mejanya sendiri tanpa perlu login.
 
                     #### **Cara Kerja di Aplikasi Pelanggan**
@@ -250,10 +274,22 @@ class AppServiceProvider extends ServiceProvider
                     
                     2. **Lakukan subscribe ke:**
                        ```javascript
-                       Echo.private('open-bill.' + billId)
-                           .listen('.repeat-order-created', (e) => {
-                               console.log('Update pesanan meja:', e);
-                           });
+                       const channel = Echo.private('open-bill.' + billId);
+
+                       // Listen tambahan pesanan
+                       channel.listen('.repeat-order-created', (e) => {
+                           console.log('Update pesanan meja:', e);
+                       });
+
+                       // Listen update status masak dari dapur
+                       channel.listen('.item-status-updated', (e) => {
+                           console.log('Notifikasi dapur:', e);
+                       });
+
+                       // Listen pelunasan order
+                       channel.listen('.order-paid', (e) => {
+                           console.log('Pembayaran terverifikasi lunas:', e);
+                       });
                        ```
                     MD,
                 'version' => '1.0.0',
