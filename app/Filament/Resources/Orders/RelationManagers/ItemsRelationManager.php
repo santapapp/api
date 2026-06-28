@@ -232,7 +232,11 @@ class ItemsRelationManager extends RelationManager
                         $record->order->syncStatusFromItems();
 
                         // Dispatch broadcast event for item status updates
-                        event(\App\Events\OrderItemStatusUpdated::fromItem($record->fresh()));
+                        try {
+                            event(\App\Events\OrderItemStatusUpdated::fromItem($record->fresh()));
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::error('Gagal melakukan broadcast OrderItemStatusUpdated: ' . $e->getMessage());
+                        }
 
                         Notification::make()
                             ->title('Status item diperbarui')

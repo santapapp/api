@@ -110,6 +110,8 @@ Route::prefix('customer')->as('customer.')->group(function (): void {
         ->middleware('throttle:customer-order')
         ->name('order.create');
 
+    Route::get('/qr-proxy', [CustomerController::class, 'qrProxy'])->name('qr-proxy');
+
     // ── Open bill (butuh X-Public-Token) ──────────────────────────────────
     // Endpoint di grup ini HANYA untuk open bill aktif (order_type=open_bill,
     // bill_status=open). Table order TIDAK memakai grup ini.

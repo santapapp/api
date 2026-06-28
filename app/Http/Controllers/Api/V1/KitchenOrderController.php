@@ -68,7 +68,11 @@ class KitchenOrderController extends Controller
         $item->order->syncStatusFromItems();
 
         // Dispatch broadcast event for item status updates
-        event(\App\Events\OrderItemStatusUpdated::fromItem($item->fresh()));
+        try {
+            event(\App\Events\OrderItemStatusUpdated::fromItem($item->fresh()));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal melakukan broadcast OrderItemStatusUpdated: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data'    => $item->fresh(),

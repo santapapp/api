@@ -215,7 +215,11 @@ class CustomerController extends Controller
         $qrisResult = $result['qris_result'];
 
         // Dispatch broadcast event for staff notification of new table order placement
-        event(\App\Events\OrderPlaced::fromOrder($order->load('diningTable')));
+        try {
+            event(\App\Events\OrderPlaced::fromOrder($order->load('diningTable')));
+        } catch (\Throwable $e) {
+            Log::error('Gagal melakukan broadcast OrderPlaced: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Pesanan berhasil dibuat.',
@@ -521,5 +525,29 @@ class CustomerController extends Controller
                 'order_no' => $order->order_number,
             ]);
         }
+    }
+
+    /**
+     * Proxy untuk gambar QRIS Midtrans guna menghindari error CORS di canvas client.
+     */
+    public function qrProxy(Request $request)
+    {
+        $url = $request->query('url');
+        if (! $url || ! str_starts_with($url, 'https://api.midtrans.com/')) {
+            abort(400, 'Invalid QR URL');
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::get($url);
+            if ($response->successful()) {
+                return response($response->body(), 200)
+                    ->header('Content-Type', $response->header('Content-Type') ?: 'image/png')
+                    ->header('Access-Control-Allow-Origin', '*');
+            }
+        } catch (\Throwable $e) {
+            Log::error('QRIS Proxy Error: ' . $e->getMessage());
+        }
+
+        abort(500, 'Gagal mengambil gambar QR');
     }
 }

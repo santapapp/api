@@ -22,7 +22,11 @@ class Order extends Model
     {
         static::updated(function (Order $order): void {
             if ($order->wasChanged('payment_status') && $order->payment_status === \App\Enums\PaymentStatus::Paid) {
-                event(\App\Events\OrderPaid::fromOrder($order->fresh(['diningTable'])));
+                try {
+                    event(\App\Events\OrderPaid::fromOrder($order->fresh(['diningTable'])));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Gagal melakukan broadcast OrderPaid: ' . $e->getMessage());
+                }
             }
         });
     }
