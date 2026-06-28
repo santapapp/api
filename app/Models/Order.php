@@ -18,6 +18,15 @@ class Order extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::updated(function (Order $order): void {
+            if ($order->wasChanged('payment_status') && $order->payment_status === \App\Enums\PaymentStatus::Paid) {
+                event(\App\Events\OrderPaid::fromOrder($order->fresh(['diningTable'])));
+            }
+        });
+    }
+
     protected $fillable = [
         'order_number',
         'public_token',

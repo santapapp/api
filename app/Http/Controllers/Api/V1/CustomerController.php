@@ -214,6 +214,9 @@ class CustomerController extends Controller
         $order = $result['order'];
         $qrisResult = $result['qris_result'];
 
+        // Dispatch broadcast event for staff notification of new table order placement
+        event(\App\Events\OrderPlaced::fromOrder($order->load('diningTable')));
+
         return response()->json([
             'message' => 'Pesanan berhasil dibuat.',
             'data' => [
