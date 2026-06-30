@@ -44,6 +44,10 @@ class Organization extends Model
         // Nomor Penanda Pesanan
         'order_marker_mode',
         'order_marker_max_number',
+        // Subscription
+        'plan',
+        'subscription_status',
+        'subscription_expires_at',
         // JSON
         'opening_hours',
         'settings',
@@ -60,6 +64,7 @@ class Organization extends Model
             'service_charge_enabled' => 'boolean',
             'service_charge_rate'    => 'decimal:2',
             'order_marker_max_number' => 'integer',
+            'subscription_expires_at' => 'datetime',
             'opening_hours'          => 'array',
             'settings'               => 'array',
         ];
