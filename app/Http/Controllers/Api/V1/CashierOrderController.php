@@ -27,6 +27,7 @@ use App\Services\OrganizationContext;
 use App\Services\QrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -43,17 +44,24 @@ class CashierOrderController extends Controller
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        $orders = Order::where('organization_id', $orgId)
-            ->whereDate('created_at', today())
-            ->when(request('order_type'), fn ($query, string $type) => $query->where('order_type', $type))
-            ->when(request('bill_status'), fn ($query, string $status) => $query->where('bill_status', $status))
-            ->where(function ($query): void {
-                $query->where('order_type', '!=', OrderType::TableOrder)
-                    ->orWhere('payment_status', '!=', PaymentStatus::Pending);
-            })
-            ->with(['items', 'diningTable', 'createdBy'])
-            ->orderByDesc('created_at')
-            ->get();
+        $version = Cache::rememberForever("org_{$orgId}_orders_version", fn() => time());
+        
+        $params = request()->only(['order_type', 'bill_status']);
+        $cacheKey = "org_{$orgId}_orders_v{$version}_" . md5(serialize($params));
+
+        $orders = Cache::remember($cacheKey, 3600, function () use ($orgId) {
+            return Order::where('organization_id', $orgId)
+                ->whereDate('created_at', today())
+                ->when(request('order_type'), fn ($query, string $type) => $query->where('order_type', $type))
+                ->when(request('bill_status'), fn ($query, string $status) => $query->where('bill_status', $status))
+                ->where(function ($query): void {
+                    $query->where('order_type', '!=', OrderType::TableOrder)
+                        ->orWhere('payment_status', '!=', PaymentStatus::Pending);
+                })
+                ->with(['items', 'diningTable', 'createdBy'])
+                ->orderByDesc('created_at')
+                ->get();
+        });
 
         return response()->json([
             'data' => OrderResource::collection($orders),

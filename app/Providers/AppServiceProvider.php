@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\User;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Observers\OrderObserver;
+use App\Observers\OrderItemObserver;
 use App\Services\OrganizationContext;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -36,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Order::observe(OrderObserver::class);
+        OrderItem::observe(OrderItemObserver::class);
+
         Auth::viaRequest('customer-token', function (Request $request) {
             $token = $request->header('X-Public-Token');
             if (! $token) {

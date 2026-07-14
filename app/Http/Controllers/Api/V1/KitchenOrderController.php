@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\OrganizationContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Antrian dapur per organisasi (header `X-Org-ID`).
@@ -23,21 +24,26 @@ class KitchenOrderController extends Controller
     /**
      * Antrian order untuk dapur.
      *
-     * Mengembalikan order dengan `order_status` `confirmed` atau `preparing`,
+     * Mengembalikan order dengan `order_status` `confirmed` or `preparing`,
      * beserta item-itemnya. Cocok untuk polling layar dapur.
      */
     public function index(): JsonResponse
     {
         $orgId = app(OrganizationContext::class)->getOrganizationId();
 
-        $orders = Order::where('organization_id', $orgId)
-            ->whereIn('order_status', [
-                OrderStatus::Confirmed,
-                OrderStatus::Preparing,
-            ])
-            ->with(['items', 'diningTable'])
-            ->orderBy('created_at')
-            ->get();
+        $version = Cache::rememberForever("org_{$orgId}_orders_version", fn() => time());
+        $cacheKey = "org_{$orgId}_kitchen_v{$version}";
+
+        $orders = Cache::remember($cacheKey, 3600, function () use ($orgId) {
+            return Order::where('organization_id', $orgId)
+                ->whereIn('order_status', [
+                    OrderStatus::Confirmed,
+                    OrderStatus::Preparing,
+                ])
+                ->with(['items', 'diningTable'])
+                ->orderBy('created_at')
+                ->get();
+        });
 
         return response()->json([
             'data' => OrderResource::collection($orders),
