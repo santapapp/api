@@ -1,58 +1,80 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🍽️ Santap API: Seluler Mandiri & Transaksi Meja Cepat
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Santap adalah platform teknologi F&B modern yang dirancang khusus untuk menciptakan pengalaman makan di tempat (*dine-in*) yang mulus, cepat, dan menyenangkan bagi pelanggan Anda. Melalui integrasi pemesanan mandiri berbasis QR meja, sistem pembayaran QRIS otomatis, dan transparansi status pesanan dapur secara *real-time*, Santap mengeliminasi antrean serta waktu tunggu yang tidak perlu.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## ✨ Pilar Utama Pengalaman Pelanggan (Customer Experience)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Sistem backend Santap mendukung empat pilar utama pengalaman pelanggan:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. 📱 Scan QR & Pesan Mandiri (Table Order)
+Pelanggan tidak perlu lagi menunggu pelayan datang membawa menu fisik. Cukup dengan memindai kode QR unik yang ada di meja:
+* **Menu Digital Interaktif**: Menelusuri seluruh menu makanan dan minuman secara visual langsung dari browser handphone.
+* **Kustomisasi Hidangan**: Menyesuaikan pilihan rasa, tingkat kepedasan, ukuran porsi, atau tambahan *topping* sesuai keinginan.
+* **Instan & Tanpa Antrean**: Pesanan terkirim secara otomatis ke sistem dapur setelah pembayaran terverifikasi.
 
-## Learning Laravel
+### 2. 💳 Pembayaran Instan Berbasis QRIS
+Santap mengintegrasikan gerbang pembayaran digital untuk mempermudah transaksi:
+* **QRIS Dinamis Otomatis**: Setiap transaksi akan menghasilkan kode QRIS unik beserta penghitung waktu mundur (*countdown timer*).
+* **Kompatibilitas Luas**: Dapat dibayar menggunakan berbagai aplikasi *mobile banking* dan dompet digital populer (GoPay, OVO, Dana, ShopeePay, LinkAja, dll.).
+* **Verifikasi Otomatis Tanpa Bukti Transfer**: Pembayaran divalidasi langsung oleh sistem. Status pesanan pelanggan langsung berubah menjadi terkonfirmasi secara instan.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 3. 👥 Sesi Meja Bersama (Open Bill / Dine-in Tab)
+Untuk pelanggan yang makan berkelompok atau ingin menambah pesanan secara fleksibel sepanjang sesi makan mereka:
+* **Sesi Terbuka Bersama**: Kasir atau staf dapat membuat sesi *Open Bill* untuk meja terkait, dan membagikan token akses digital.
+* **Pemesanan Mandiri Berulang (Repeat Order)**: Siapa saja di meja tersebut dapat menambahkan menu baru ke bill yang sama dari handphone masing-masing tanpa harus menutup tagihan terlebih dahulu.
+* **Dapur Langsung Memasak**: Setiap tambahan menu baru akan langsung masuk ke antrean dapur secara otomatis.
+* **Metode Pelunasan Fleksibel**: Pembayaran bill bersama dapat dilunasi secara mandiri via QRIS atau secara tunai di kasir pada akhir kunjungan.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 4. 👩‍🍳 Transparansi Proses Dapur & Layanan
+Menghilangkan rasa cemas menunggu makanan dengan memberikan status penyiapan yang transparan:
+* **Pelacakan Real-Time**: Pelanggan dapat memantau status setiap item pesanan mereka.
+* **Tahapan Status Pesanan**:
+  * 📥 **Pending**: Menunggu pembayaran atau verifikasi kasir.
+  * 🍳 **Preparing**: Pesanan sedang dipersiapkan dan dimasak oleh koki di dapur.
+  * 🍽️ **Ready**: Hidangan telah selesai dimasak dan siap disajikan.
+  * 🚚 **Served**: Hidangan telah diantarkan ke meja pelanggan.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 🗺️ Alur Perjalanan Pelanggan (Customer Journey Maps)
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Berikut adalah visualisasi alur interaksi pelanggan dengan sistem Santap:
 
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+### 1. Alur Pemesanan Mandiri & Pembayaran QRIS Instan
+```mermaid
+flowchart TD
+    A[Pelanggan Datang & Scan QR Meja] --> B[Telusuri Menu Digital & Pilih Varian]
+    B --> C[Kirim Pesanan & Buat Transaksi]
+    C --> D[Tampilkan QRIS & Countdown Timer]
+    D --> E{Bayar via e-Wallet / M-Banking?}
+    E -->|Sukses / Lunas| F[Status: Dibayar & Dikonfirmasi]
+    E -->|Batal / Expired| G[Transaksi Dibatalkan]
+    F --> H[Masuk Antrean Dapur & Mulai Dimasak]
+    H --> I[Pesanan Disajikan ke Meja Pelanggan]
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Alur Makan Bersama (Sesi Open Bill)
+```mermaid
+flowchart TD
+    A[Staf Kasir Membuka Sesi Open Bill Meja] --> B[Pelanggan Akses Menu Bersama via Token]
+    B --> C[Pelanggan Tambah Item & Klik Pesan]
+    C --> D[Dapur Langsung Memasak Item Baru]
+    D --> E{Ingin Tambah Menu Lagi?}
+    E -->|Ya| C
+    E -->|Tidak: Selesai Makan| F{Pilih Metode Bayar}
+    F -->|QRIS Mandiri di HP| G[Scan & Bayar QRIS Instan]
+    F -->|Tunai ke Kasir| H[Bayar Tunai & Dikonfirmasi Staf]
+    G --> I[Sesi Bill Ditutup & Selesai]
+    H --> I
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🛠️ Catatan Teknis (Untuk Pengembang & Staf Sistem)
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Untuk detail teknis, konfigurasi server, arsitektur backend, dan integrasi API pengembang, silakan merujuk pada:
+* 📄 **Catatan Perubahan Arsitektur**: [Update.md](file:///c:/laragon/www/api-santap/Update.md)
+* 📁 **Direktori Rute API**: [routes/api.php](file:///c:/laragon/www/api-santap/routes/api.php)
+* 📁 **Dokumentasi API Tambahan**: [docs/](file:///c:/laragon/www/api-santap/docs/)
