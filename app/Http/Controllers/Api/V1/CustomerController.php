@@ -45,21 +45,24 @@ class CustomerController extends Controller
 
         return response()->json([
             'data' => [
-                'id' => $org->id,
-                'name' => $org->name,
-                'slug' => $org->slug,
-                'phone' => $org->phone,
-                'address' => $org->address,
-                'city' => $org->city,
-                'logo' => MediaService::toUrl($org->logo),
-                'timezone' => $org->timezone,
-                'currency' => $org->currency,
-                'opening_hours' => $org->opening_hours,
+                'id'                     => $org->id,
+                'name'                   => $org->name,
+                'slug'                   => $org->slug,
+                'phone'                  => $org->phone,
+                'email'                  => $org->email,
+                'address'                => $org->address,
+                'city'                   => $org->city,
+                'province'               => $org->province,
+                'logo'                   => MediaService::toUrl($org->logo),
+                'banner'                 => MediaService::toUrl($org->banner),
+                'timezone'               => $org->timezone,
+                'currency'               => $org->currency,
+                'opening_hours'          => $org->opening_hours,
                 // Pajak & service charge — agar frontend bisa menampilkan rincian.
-                'tax_enabled' => $org->tax_enabled,
-                'tax_rate' => $org->tax_rate !== null ? (float) $org->tax_rate : null,
+                'tax_enabled'            => $org->tax_enabled,
+                'tax_rate'               => $org->tax_rate !== null ? (float) $org->tax_rate : null,
                 'service_charge_enabled' => $org->service_charge_enabled,
-                'service_charge_rate' => $org->service_charge_rate !== null ? (float) $org->service_charge_rate : null,
+                'service_charge_rate'    => $org->service_charge_rate !== null ? (float) $org->service_charge_rate : null,
             ],
         ]);
     }

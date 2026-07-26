@@ -106,6 +106,11 @@ class EstehSidomakmurSeeder extends Seeder
             ]
         );
 
+        $org->update([
+            'logo'   => 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500',
+            'banner' => 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=1600',
+        ]);
+
         // ================================================================
         // 3. MEMBERS
         // ================================================================
@@ -151,7 +156,14 @@ class EstehSidomakmurSeeder extends Seeder
         // ── A. TEH ORIGINAL & KLASIK SERIES ──────────────────────────────
 
         // 1. Es Teh Solo Original
-        $esTehSolo = $this->product($org->id, 'Es Teh Solo Original', 5000, 1, 'Teh melati khas Solo yang pekat, harum, dan manis legi yang khas.');
+        $esTehSolo = $this->product(
+            $org->id,
+            'Es Teh Solo Original',
+            5000,
+            1,
+            'Teh melati khas Solo yang pekat, harum, dan manis legi yang khas.',
+            'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600'
+        );
         
         $gUkuran = $this->variantGroup($org->id, $esTehSolo->id, 'Ukuran Porsi', 1, true, 1, 1);
         $vReg = $this->variant($org->id, $gUkuran->id, 'Reguler (Medium)', 0, 1);
@@ -177,7 +189,14 @@ class EstehSidomakmurSeeder extends Seeder
         $aSelasih = $this->addon($org->id, $gTopping->id, 'Biji Selasih', 1500, 5);
 
         // 2. Es Teh Kampul Solo
-        $esTehKampul = $this->product($org->id, 'Es Teh Kampul Solo', 7000, 2, 'Teh wangi khas Solo dipadukan dengan perasan dan irisan jeruk nipis segar.');
+        $esTehKampul = $this->product(
+            $org->id,
+            'Es Teh Kampul Solo',
+            7000,
+            2,
+            'Teh wangi khas Solo dipadukan dengan perasan dan irisan jeruk nipis segar.',
+            'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600'
+        );
         $gkUkuran = $this->variantGroup($org->id, $esTehKampul->id, 'Ukuran Porsi', 1, true, 1, 1);
         $this->variant($org->id, $gkUkuran->id, 'Reguler (Medium)', 0, 1);
         $this->variant($org->id, $gkUkuran->id, 'Jumbo (Large)', 3000, 2);
@@ -192,13 +211,27 @@ class EstehSidomakmurSeeder extends Seeder
         $this->addon($org->id, $gkAddon->id, 'Biji Selasih', 1500, 3);
 
         // 3. Es Teh Lemon (Lemon Tea Nusantara)
-        $esTehLemon = $this->product($org->id, 'Es Teh Lemon Nusantara', 8000, 3, 'Kombinasi asam lemon segar dan teh racikan khas Nusantara.');
+        $esTehLemon = $this->product(
+            $org->id,
+            'Es Teh Lemon Nusantara',
+            8000,
+            3,
+            'Kombinasi asam lemon segar dan teh racikan khas Nusantara.',
+            'https://images.unsplash.com/photo-1599390719602-53697eb1df39?w=600'
+        );
         $glUkuran = $this->variantGroup($org->id, $esTehLemon->id, 'Ukuran Porsi', 1, true, 1, 1);
         $this->variant($org->id, $glUkuran->id, 'Reguler (Medium)', 0, 1);
         $this->variant($org->id, $glUkuran->id, 'Jumbo (Large)', 3000, 2);
 
         // 4. Es Teh Lychee (Leci Tea Spesial)
-        $esTehLeci = $this->product($org->id, 'Es Teh Leci Tea Spesial', 10000, 4, 'Teh aroma leci segar dilengkapi topping buah leci asli.');
+        $esTehLeci = $this->product(
+            $org->id,
+            'Es Teh Leci Tea Spesial',
+            10000,
+            4,
+            'Teh aroma leci segar dilengkapi topping buah leci asli.',
+            'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600'
+        );
         $glcUkuran = $this->variantGroup($org->id, $esTehLeci->id, 'Ukuran Porsi', 1, true, 1, 1);
         $this->variant($org->id, $glcUkuran->id, 'Reguler (Medium)', 0, 1);
         $this->variant($org->id, $glcUkuran->id, 'Jumbo (Large)', 4000, 2);
@@ -210,7 +243,14 @@ class EstehSidomakmurSeeder extends Seeder
         // ── B. FRUITY & REFRESHING SERIES ──────────────────────────────────
 
         // 5. Es Teh Mangga (Mango Tea)
-        $esTehMango = $this->product($org->id, 'Es Teh Mangga (Mango Tea)', 9000, 5, 'Rasa manis tropis buah mangga dikombinasikan dengan teh wangi.');
+        $esTehMango = $this->product(
+            $org->id,
+            'Es Teh Mangga (Mango Tea)',
+            9000,
+            5,
+            'Rasa manis tropis buah mangga dikombinasikan dengan teh wangi.',
+            'https://images.unsplash.com/photo-1546173159-315724a31696?w=600'
+        );
         $gmUkuran = $this->variantGroup($org->id, $esTehMango->id, 'Ukuran Porsi', 1, true, 1, 1);
         $this->variant($org->id, $gmUkuran->id, 'Reguler (Medium)', 0, 1);
         $this->variant($org->id, $gmUkuran->id, 'Jumbo (Large)', 3000, 2);
@@ -219,15 +259,36 @@ class EstehSidomakmurSeeder extends Seeder
         $this->addon($org->id, $gmAddon->id, 'Cream Cheese', 4000, 2);
 
         // 6. Es Teh Markisa (Passion Fruit Tea)
-        $this->product($org->id, 'Es Teh Markisa Nusantara', 9000, 6, 'Sensasi asam manis sari buah markisa asli yang sangat menyegarkan.');
+        $this->product(
+            $org->id,
+            'Es Teh Markisa Nusantara',
+            9000,
+            6,
+            'Sensasi asam manis sari buah markisa asli yang sangat menyegarkan.',
+            'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=600'
+        );
 
         // 7. Es Teh Strawberry Macchiato
-        $this->product($org->id, 'Es Teh Strawberry Macchiato', 12000, 7, 'Teh rasa strawberry segar dilapisi krim macchiato gurih manis di atasnya.');
+        $this->product(
+            $org->id,
+            'Es Teh Strawberry Macchiato',
+            12000,
+            7,
+            'Teh rasa strawberry segar dilapisi krim macchiato gurih manis di atasnya.',
+            'https://images.unsplash.com/photo-1553787499-6f9133860278?w=600'
+        );
 
         // ── C. CREAMY & MILK TEA SERIES ─────────────────────────────────────
 
         // 8. Es Teh Milk Tea Nusantara (Teh Susu Original)
-        $esTehMilk = $this->product($org->id, 'Es Teh Milk Tea Nusantara', 10000, 8, 'Perpaduan sempurna racikan teh wangi dan susu creamy lembut.');
+        $esTehMilk = $this->product(
+            $org->id,
+            'Es Teh Milk Tea Nusantara',
+            10000,
+            8,
+            'Perpaduan sempurna racikan teh wangi dan susu creamy lembut.',
+            'https://images.unsplash.com/photo-1558857563-b371033873b8?w=600'
+        );
         $gmtUkuran = $this->variantGroup($org->id, $esTehMilk->id, 'Ukuran Porsi', 1, true, 1, 1);
         $this->variant($org->id, $gmtUkuran->id, 'Reguler (Medium)', 0, 1);
         $this->variant($org->id, $gmtUkuran->id, 'Jumbo (Large)', 4000, 2);
@@ -237,37 +298,93 @@ class EstehSidomakmurSeeder extends Seeder
         $this->addon($org->id, $gmtAddon->id, 'Cream Cheese Macchiato', 4000, 3);
 
         // 9. Es Teh Taro Milk
-        $this->product($org->id, 'Es Teh Taro Milk Creamy', 12000, 9, 'Flavor taro (talas manis) bertemu dengan racikan teh dan susu manis.');
+        $this->product(
+            $org->id,
+            'Es Teh Taro Milk Creamy',
+            12000,
+            9,
+            'Flavor taro (talas manis) bertemu dengan racikan teh dan susu manis.',
+            'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600'
+        );
 
         // 10. Es Teh Red Velvet Cheese
-        $this->product($org->id, 'Es Teh Red Velvet Cheese', 13000, 10, 'Sensasi kue red velvet gurih dengan lapisan foam cheese melimpah.');
+        $this->product(
+            $org->id,
+            'Es Teh Red Velvet Cheese',
+            13000,
+            10,
+            'Sensasi kue red velvet gurih dengan lapisan foam cheese melimpah.',
+            'https://images.unsplash.com/photo-1579954115545-aad51642a697?w=600'
+        );
 
         // 11. Es Teh Matcha Latte
-        $this->product($org->id, 'Es Teh Matcha Latte', 14000, 11, 'Matcha jepang kualitas pilihan berpadu gurihnya susu dan teh Nusantara.');
+        $this->product(
+            $org->id,
+            'Es Teh Matcha Latte',
+            14000,
+            11,
+            'Matcha jepang kualitas pilihan berpadu gurihnya susu dan teh Nusantara.',
+            'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600'
+        );
 
         // 12. Es Teh Choco Milo Nusantara
-        $this->product($org->id, 'Es Teh Choco Milo Nusantara', 13000, 12, 'Kombinasi cokelat Milo melimpah dan rasa teh wangi khas Sidomakmur.');
+        $this->product(
+            $org->id,
+            'Es Teh Choco Milo Nusantara',
+            13000,
+            12,
+            'Kombinasi cokelat Milo melimpah dan rasa teh wangi khas Sidomakmur.',
+            'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=600'
+        );
 
         // ── D. SNACK & CEMILAN PENDAMPING ES TEH ────────────────────────────
 
         // 13. Roti Bakar Cokelat Keju
-        $rotiBakar = $this->product($org->id, 'Roti Bakar Cokelat Keju', 12000, 13, 'Roti bakar empuk renyah dengan isian cokelat meises dan parutan keju keju melimpah.');
+        $rotiBakar = $this->product(
+            $org->id,
+            'Roti Bakar Cokelat Keju',
+            12000,
+            13,
+            'Roti bakar empuk renyah dengan isian cokelat meises dan parutan keju keju melimpah.',
+            'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600'
+        );
         $grbTop = $this->variantGroup($org->id, $rotiBakar->id, 'Topping Utama', 1, true, 1, 1);
         $this->variant($org->id, $grbTop->id, 'Mix Cokelat Keju Spesial', 0, 1);
         $this->variant($org->id, $grbTop->id, 'Full Keju Susu', 0, 2);
         $this->variant($org->id, $grbTop->id, 'Full Cokelat Meises', 0, 3);
 
         // 14. Pisang Goreng Keju Crispy
-        $pisangGoreng = $this->product($org->id, 'Pisang Goreng Keju Crispy', 10000, 14, 'Pisang goreng crispy manis legit disajikan dengan taburan keju dan susu kental manis.');
+        $pisangGoreng = $this->product(
+            $org->id,
+            'Pisang Goreng Keju Crispy',
+            10000,
+            14,
+            'Pisang goreng crispy manis legit disajikan dengan taburan keju dan susu kental manis.',
+            'https://images.unsplash.com/photo-1603532648955-039310d9ed75?w=600'
+        );
 
         // 15. Cireng Rujak Pedas
-        $cireng = $this->product($org->id, 'Cireng Rujak Pedas', 10000, 15, 'Cireng renyah di luar kenyal di dalam disajikan bersama bumbu rujak pedas manis.');
+        $cireng = $this->product(
+            $org->id,
+            'Cireng Rujak Pedas',
+            10000,
+            15,
+            'Cireng renyah di luar kenyal di dalam disajikan bersama bumbu rujak pedas manis.',
+            'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600'
+        );
         $gcrLevel = $this->variantGroup($org->id, $cireng->id, 'Level Sambal Rujak', 1, true, 1, 1);
         $this->variant($org->id, $gcrLevel->id, 'Level Sedang (Pedas Manis)', 0, 1);
         $this->variant($org->id, $gcrLevel->id, 'Level Pedas Mampus', 1000, 2);
 
         // 16. French Fries (Kentang Goreng)
-        $fries = $this->product($org->id, 'French Fries (Kentang Goreng)', 10000, 16, 'Kentang goreng stik renyah gurih.');
+        $fries = $this->product(
+            $org->id,
+            'French Fries (Kentang Goreng)',
+            10000,
+            16,
+            'Kentang goreng stik renyah gurih.',
+            'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600'
+        );
         $gfrBumbu = $this->variantGroup($org->id, $fries->id, 'Bumbu Tabur', 1, true, 1, 1);
         $this->variant($org->id, $gfrBumbu->id, 'Balado Pedas Sweet', 0, 1);
         $this->variant($org->id, $gfrBumbu->id, 'Keju Gurih', 0, 2);
@@ -275,7 +392,14 @@ class EstehSidomakmurSeeder extends Seeder
         $this->variant($org->id, $gfrBumbu->id, 'Original Salted', 0, 4);
 
         // 17. Dimsum Ayam Mentai (4 Pcs)
-        $dimsum = $this->product($org->id, 'Dimsum Ayam Mentai (4 Pcs)', 15000, 17, 'Dimsum ayam olahan lembut dibalur saus mentai gurih dan di-torch.');
+        $dimsum = $this->product(
+            $org->id,
+            'Dimsum Ayam Mentai (4 Pcs)',
+            15000,
+            17,
+            'Dimsum ayam olahan lembut dibalur saus mentai gurih dan di-torch.',
+            'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=600'
+        );
         $gdsAddon = $this->addonGroup($org->id, $dimsum->id, 'Saus & Topping Extra', 1, false, 0, 2);
         $this->addon($org->id, $gdsAddon->id, 'Extra Saus Mentai Torch', 3000, 1);
         $this->addon($org->id, $gdsAddon->id, 'Chili Oil Pedas Gurih', 2000, 2);
@@ -345,17 +469,24 @@ class EstehSidomakmurSeeder extends Seeder
     // HELPERS: MENU CREATION
     // ====================================================================
 
-    private function product(int $orgId, string $name, int $price, int $sort, string $description = ''): Menu
+    private function product(int $orgId, string $name, int $price, int $sort, string $description = '', ?string $image = null): Menu
     {
-        return Menu::firstOrCreate(
+        $menu = Menu::firstOrCreate(
             ['organization_id' => $orgId, 'name' => $name, 'parent_id' => null],
             [
                 'type'        => 'product',
                 'price'       => $price,
                 'description' => $description,
+                'image'       => $image,
                 'sort_order'  => $sort,
             ]
         );
+
+        if ($image && $menu->image !== $image) {
+            $menu->update(['image' => $image]);
+        }
+
+        return $menu;
     }
 
     private function variantGroup(
