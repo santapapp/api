@@ -156,5 +156,8 @@ class DatabaseSeeder extends Seeder
 
         // Tenant kedua: Kobesah Godean
         $this->call(KobesahGodeanSeeder::class);
+
+        // Tenant ketiga: Es Teh Sidomakmur
+        $this->call(EstehSidomakmurSeeder::class);
     }
 }

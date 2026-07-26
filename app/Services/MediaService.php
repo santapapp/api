@@ -73,15 +73,23 @@ class MediaService
             return null;
         }
 
-        if (Str::startsWith($path, ['http://', 'https://'])) {
-            return $path;
+        $trimmed = trim($path);
+
+        // Jika sudah berupa URL absolut (http/https), protocol-relative (//), atau Base64 data URI
+        if (Str::startsWith($trimmed, ['http://', 'https://', '//', 'data:'])) {
+            return $trimmed;
         }
 
-        return Storage::disk(self::DISK)->url($path);
+        // Jika path sudah diawali /storage atau storage/
+        if (Str::startsWith($trimmed, ['/storage/', 'storage/'])) {
+            return url('/' . ltrim($trimmed, '/'));
+        }
+
+        return Storage::disk(self::DISK)->url($trimmed);
     }
 
     private function isAbsoluteUrl(string $value): bool
     {
-        return Str::startsWith($value, ['http://', 'https://']);
+        return Str::startsWith(trim($value), ['http://', 'https://', '//', 'data:']);
     }
 }
