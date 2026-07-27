@@ -28,7 +28,19 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn (): string => Blade::render('@vite([\'resources/js/app.js\'])'),
+                function (): string {
+                    $user = auth()->user();
+                    $userJson = json_encode([
+                        'id' => $user?->id,
+                        'name' => $user?->name,
+                        'orgIds' => $user ? $user->memberships()->pluck('organization_id')->map(fn ($id) => (int) $id)->toArray() : [],
+                    ]);
+
+                    return Blade::render('
+                        <script>window.SantapUser = ' . $userJson . ';</script>
+                        @vite([\'resources/js/app.js\'])
+                    ');
+                },
             )
             ->id('admin')
             ->path('admin')

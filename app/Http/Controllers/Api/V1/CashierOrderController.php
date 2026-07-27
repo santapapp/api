@@ -127,6 +127,13 @@ class CashierOrderController extends Controller
             'opened_at' => $isOpenBill ? now() : null,
         ]);
 
+        // Dispatch broadcast event for staff/cashiers notification of new order placement
+        try {
+            event(\App\Events\OrderPlaced::fromOrder($order->load('diningTable')));
+        } catch (\Throwable $e) {
+            Log::error('Gagal melakukan broadcast OrderPlaced untuk cashier open bill: ' . $e->getMessage());
+        }
+
         return response()->json([
             'data' => new OrderDetailResource($order->load('diningTable', 'createdBy')),
             'message' => 'Order berhasil dibuat.',
